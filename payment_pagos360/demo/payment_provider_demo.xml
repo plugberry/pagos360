@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="payment_provider_pagos360" model="payment.provider">
+        <field name="pagos360_test_api_key">MWQzMDUyNDQ0YzU3ZTc1NzJkMTBhZGQxYWEzMGQ4NTdmMzFlMjkwMDMxNTIxYjFiM2M3OGYxNzkzNTIxMjJmMA</field>
+        <field name="pagos360_form_url">https://adhoc-sandbox.autogestion.io/adhesion?pKey=Yth7ug6NQtEMh2$</field>
+    </record>
+</odoo>
