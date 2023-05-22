@@ -6,6 +6,11 @@
         <field name="model">payment.provider</field>
         <field name="inherit_id" ref="payment.payment_provider_form"/>
         <field name="arch" type="xml">
+            <group name="provider_credentials" position="before">
+                <div attrs="{'invisible': [('code', '!=', 'pagos360')]}">
+                    <button string="Ensure Webhook" type="object" name="ensure_webhook" class="btn-primary mb-3" colspan="2" />
+                </div>
+            </group>
             <group name="provider_credentials" position='inside'>
                 <group attrs="{'invisible': [('code', '!=', 'pagos360')]}">
                     <field name="pagos360_api_key" password="True"

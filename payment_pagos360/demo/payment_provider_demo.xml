@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="payment_provider_pagos360" model="payment.provider">
+        <field name="pagos360_test_api_key">MWQzMDUyNDQ0YzU3ZTc1NzJkMTBhZGQxYWEzMGQ4NTdmMzFlMjkwMDMxNTIxYjFiM2M3OGYxNzkzNTIxMjJmMA</field>
+    </record>
+</odoo>

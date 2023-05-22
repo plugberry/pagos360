@@ -7,7 +7,6 @@ from datetime import timedelta
 from odoo import _, models, fields
 from odoo.exceptions import ValidationError
 
-# from odoo.addons.payment_mercado_pago.const import TRANSACTION_STATUS_MAPPING
 from ..controllers.main import Pagos360Controller
 
 
@@ -90,6 +89,7 @@ class PaymentTransaction(models.Model):
         tx = super()._get_tx_from_notification_data(provider_code, notification_data)
         if provider_code != 'pagos360' or len(tx) == 1:
             return tx
+
         payload = notification_data.get('payload')
         tx = self.search(
             [('reference', '=', payload.get('external_reference')), ('provider_code', '=', 'pagos360')]
