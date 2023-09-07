@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="redirect_form">
+        <!-- Pagos360 generates a unique URL for each payment request. -->
+        <form t-att-action="api_url" method="post"/>
+    </template>
+
+    <template id="inline_form">
+        <div class="alert alert-warning" role="alert">
+            Usted será redirigido al sitio web de Pagos 360!
+        </div>
+    </template>
+
+</odoo>
