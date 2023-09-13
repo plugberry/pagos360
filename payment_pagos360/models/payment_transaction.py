@@ -118,7 +118,7 @@ class PaymentTransaction(models.Model):
         entity_name = notification_data.get('entity_name')
         entity_id = notification_data.get('entity_id')
         if not entity_id:
-            raise ValidationError("Pagos360: " + _("Received data with missing entity id."))
+            raise ValidationError("PAGOS360: " + _("Received data with missing entity id."))
 
         self.provider_reference = entity_id
         payment_status = notification_data.get('type')
@@ -131,21 +131,26 @@ class PaymentTransaction(models.Model):
                     self._pagos360_tokenize_from_feedback_data(notification_data)
         elif payment_status == 'paid':
             self._set_done()
-        elif payment_status in ['expired', 'canceled', 'failed', 'transfer_canceled','transfer_rejected', 'expired']:
-            self._set_canceled("Pagos360: " + _("Canceled payment with status: %s", payment_status))
+        elif payment_status in ['expired', 'canceled', 'transfer_canceled']:
+            self._set_canceled("PAGOS360: " + _("Canceled payment with status: %s", payment_status))
             if entity_name in ['card_adhesion', 'adhesion']:
                 if self.token_id and self.token_id.active == True:
                     self.token_id.with_context(is_notification=True).update({'active': False})
-                # TODO:  implementar baja de adhesion
-                pass
         else:
             _logger.info(
                 "received data with invalid payment status (%s) for transaction with reference %s",
                 payment_status, self.reference
             )
-            self._set_error(
-                "Pagos360: " + _("Received data with invalid payment status: %s", payment_status)
-            )
+            message = """
+                Parece que esta transacción no se pudo realizar, ante algún inconveniente por favor comunicarse a través de los siguientes canales:<br/>
+                Correo Electrónico: soporte@pagos360.com.ar<br/>
+                WhatsApp: +54 3512548747<br/>
+                Información:<br/>
+                - Transacción PAGOS360: {transaction}<br/>
+                - Código de Error: {error_code}<br/>
+                - Mensaje de Error": {error_msg}<br/>
+            """.format(transaction=self.provider_reference, error_code=payment_status, error_msg='')
+            self._set_error("PAGOS360: " + message)
 
     def _pagos360_tokenize_from_feedback_data(self, notification_data):
         """ Create a new token based on the feedback data.
@@ -226,7 +231,7 @@ class PaymentTransaction(models.Model):
                 "description": _("Payment %s") % self.company_id.display_name,
                 "first_total": self.amount,
                 # la fecha de vencimiento para cbu es un dia habil hay un sevicio para eso
-                "first_due_date": fields.Datetime.from_string(next_business_day[:10]).strftime('12-%m-%Y'), 
+                "first_due_date": fields.Datetime.from_string(next_business_day[:10]).strftime('%d-%m-%Y'),
                 "adhesion_id": int(self.token_id.provider_ref)
             }
         }
