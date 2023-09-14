@@ -8,7 +8,11 @@
 
     <template id="inline_form">
         <div class="alert alert-warning" role="alert">
-            Usted será redirigido al sitio web de Pagos 360!
+            Usted será redirigido al sitio web de PAGOS360.
+            <p style="font-size: 14px;">
+            Ante algún inconveniente al realizar su pago contactese a
+            <a href="mailto:hola@pagos360.com">hola@pagos360.com</a>
+            </p>
         </div>
     </template>
 
