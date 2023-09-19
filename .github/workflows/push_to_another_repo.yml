@@ -15,7 +15,7 @@ jobs:
           token: ${{ secrets.TOKEN }}
           fetch-depth: 0
         uses: actions/checkout@v3
-      - name: Push to plugberry
-        run: git push --force https://github.com/plugberry/${GITHUB_REPOSITORY#'adhoc-dev/'}.git HEAD
+      - name: Push to ingadhoc
+        run: git push --force https://github.com/ingadhoc/${GITHUB_REPOSITORY#'adhoc-dev/'}.git HEAD
       - name: PR link
-        run: echo 'Create pr by visiting https://github.com/plugberry/'${GITHUB_REPOSITORY#'adhoc-dev/'}'/pull/new/'${GITHUB_REF_NAME}
+        run: echo 'Create pr by visiting https://github.com/ingadhoc/'${GITHUB_REPOSITORY#'adhoc-dev/'}'/pull/new/'${GITHUB_REF_NAME}
