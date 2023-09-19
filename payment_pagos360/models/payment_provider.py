@@ -1,13 +1,12 @@
-import uuid
 import logging
 import requests
 from werkzeug import urls
 
-from odoo import _, api, fields, models, Command
-from odoo.exceptions import UserError, ValidationError
+from odoo import _, api, fields, models
+from odoo.exceptions import  ValidationError
 
 from ..controllers.main import Pagos360Controller
-from ..const import API_URL, API_TEST_URL, HANDLED_WEBHOOK_EVENTS
+from ..const import API_URL, API_TEST_URL
 
 _logger = logging.getLogger(__name__)
 
@@ -16,10 +15,11 @@ class PaymentProvider(models.Model):
 
     code = fields.Selection(
         selection_add=[('pagos360', "PAGOS360")], ondelete={'pagos360': 'set default'})
+    pagos360_flow = fields.Selection([('payment_button','Payment Button'),('rapipago', 'Rapipago'), ('pagofacil', 'Pago facil')],default='payment_button')
     pagos360_api_key = fields.Char(
-        string="Api Key", groups='base.group_system')
+        string="Api Key (PAGOS360)", groups='base.group_system')
     pagos360_test_api_key = fields.Char(
-        string="Test Api Key", groups='base.group_system')
+        string="Test Api Key (PAGOS360)", groups='base.group_system')
     pagos360_form_url = fields.Char("Link formulario debito automático")
 
     validity_days = fields.Integer(default=15)
@@ -53,9 +53,13 @@ class PaymentProvider(models.Model):
             response = requests.request(method, url, json=data, headers=headers, timeout=60)
             response.raise_for_status()
         except requests.exceptions.RequestException:
-            _logger.error(response.text)
             _logger.exception("Unable to communicate with Pagos360: %s", url)
-            raise ValidationError("Pagos360: " + _("Could not establish the connection to the API."))
+            _logger.error("send data data: %s" % str(data))
+            _logger.error("response.text: %s" % response.text)
+            raise ValidationError("Pagos360: {error_title} \n ref: {error_ref}".format(
+                error_title = _("Could not establish the connection to the API."),
+                error_ref = response.text)
+            )
         return response.json()
 
     @api.depends('pagos360_api_key', 'pagos360_test_api_key')
@@ -108,22 +112,25 @@ class PaymentProvider(models.Model):
                     else:
                         self._pagos360_make_request('/webhook/%s' % webhook_id, method='DELETE')
         return False
+    def handled_event_types(self):
+        # Se puede heredar en otros modulos para agregar nuevos webhooks
+        return ["adhesion.canceled","adhesion.signed","card_adhesion.canceled","card_adhesion.signed","card_debit_request.canceled",
+                "card_debit_request.paid","card_debit_request.refunded","card_debit_request.rejected","card_debit_request.reverted",
+                "card_debit_request.waived","debit_request.canceled","debit_request.paid","debit_request.refunded","debit_request.rejected",
+                "debit_request.reverted","debit_request.waived","payment_request.paid","payment_request.refunded","payment_request.rejected",
+                "payment_request.reverted","payment_request.transfer_canceled","payment_request.transfer_created",
+                "payment_request.transfer_rejected","payment_request.waived", "payment_request.banelco_pmc_created","payment_request.debin_created",
+                "payment_request.expired","payment_request.link_pagos_created"]
 
     def _get_event_types(self):
-        # Se puede heredar en otros modulos para agregar nuevos webhooks
         event_types = list()
-        event_types.extend([
-            HANDLED_WEBHOOK_EVENTS['payment_request.expired'],
-            HANDLED_WEBHOOK_EVENTS['payment_request.paid'],
-            HANDLED_WEBHOOK_EVENTS['payment_request.refunded'],
-            HANDLED_WEBHOOK_EVENTS['payment_request.rejected'],
-            HANDLED_WEBHOOK_EVENTS['adhesion.signed'],
-            HANDLED_WEBHOOK_EVENTS['adhesion.canceled'],
-            HANDLED_WEBHOOK_EVENTS['card_adhesion.signed'],
-            HANDLED_WEBHOOK_EVENTS['card_adhesion.canceled'],
-        ])
+        types = self._pagos360_make_request('/event-type?limit=50', method='GET')
+        handled_event_types = self.handled_event_types()
+        if types and types.get('data'):
+            data = types.get('data')
+            event_types  = [x['id'] for x in data if x['name'] in handled_event_types]
         return event_types
-    
+
     #=== COMPUTE METHODS ===#
 
     def _compute_feature_support_fields(self):

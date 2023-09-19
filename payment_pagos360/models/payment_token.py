@@ -1,7 +1,7 @@
 import logging
 
 from odoo import _, fields, models, api
-from odoo.exceptions import UserError
+from requests.exceptions import RequestException
 
 _logger = logging.getLogger(__name__)
 
@@ -28,9 +28,12 @@ class PaymentToken(models.Model):
 
     def write(self, values):
         res = super().write(values)
-        if 'active' in values and not self.env.context.get('is_notification'):
-            if values['active'] == False:
-                endpoint = 'adhesion' if self.pagos360_adhesion_type == 'adhesion' else 'card-adhesion'
-                id = self.provider_ref
-                self.provider_id._pagos360_make_request(f'/{endpoint}/{id}/cancel', method='PUT')
+        if 'active' in values and values['active'] == False and not self.env.context.get('is_notification'):
+            for rec in self.filtered(lambda x: x.provider_code == 'pagos360'):
+                    endpoint = 'adhesion' if rec.pagos360_adhesion_type == 'adhesion' else 'card-adhesion'
+                    id = rec.provider_ref
+                    try:
+                        rec.provider_id._pagos360_make_request(f'/{endpoint}/{id}/cancel', method='PUT')
+                    except RequestException:
+                        _logger.exception("Unable to delete token in PAGOS360")
         return res
