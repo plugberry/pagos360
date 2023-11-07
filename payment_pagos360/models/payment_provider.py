@@ -7,7 +7,7 @@ from odoo import _, api, fields, models, Command
 from odoo.exceptions import UserError, ValidationError
 
 from ..controllers.main import Pagos360Controller
-from ..const import API_URL, API_TEST_URL, HANDLED_WEBHOOK_EVENTS
+from ..const import API_URL, API_TEST_URL
 
 _logger = logging.getLogger(__name__)
 
@@ -108,22 +108,24 @@ class PaymentProvider(models.Model):
                     else:
                         self._pagos360_make_request('/webhook/%s' % webhook_id, method='DELETE')
         return False
+    def handled_event_types(self):
+        # Se puede heredar en otros modulos para agregar nuevos webhooks
+        return ["adhesion.canceled","adhesion.signed","card_adhesion.canceled","card_adhesion.signed","card_debit_request.canceled",
+                "card_debit_request.paid","card_debit_request.refunded","card_debit_request.rejected","card_debit_request.reverted",
+                "card_debit_request.waived","debit_request.canceled","debit_request.paid","debit_request.refunded","debit_request.rejected",
+                "debit_request.reverted","debit_request.waived","payment_request.paid","payment_request.refunded","payment_request.rejected",
+                "payment_request.reverted","payment_request.transfer_canceled","payment_request.transfer_created",
+                "payment_request.transfer_rejected","payment_request.waived"]
 
     def _get_event_types(self):
-        # Se puede heredar en otros modulos para agregar nuevos webhooks
         event_types = list()
-        event_types.extend([
-            HANDLED_WEBHOOK_EVENTS['payment_request.expired'],
-            HANDLED_WEBHOOK_EVENTS['payment_request.paid'],
-            HANDLED_WEBHOOK_EVENTS['payment_request.refunded'],
-            HANDLED_WEBHOOK_EVENTS['payment_request.rejected'],
-            HANDLED_WEBHOOK_EVENTS['adhesion.signed'],
-            HANDLED_WEBHOOK_EVENTS['adhesion.canceled'],
-            HANDLED_WEBHOOK_EVENTS['card_adhesion.signed'],
-            HANDLED_WEBHOOK_EVENTS['card_adhesion.canceled'],
-        ])
+        types = self._pagos360_make_request('/event-type', method='GET')
+        handled_event_types = self.handled_event_types()
+        if types and types.get('data'):
+            data = types.get('data')
+            event_types  = [x['id'] for x in data if x['name'] in handled_event_types]
         return event_types
-    
+
     #=== COMPUTE METHODS ===#
 
     def _compute_feature_support_fields(self):

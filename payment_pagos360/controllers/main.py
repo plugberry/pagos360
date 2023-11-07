@@ -37,10 +37,10 @@ class Pagos360Controller(http.Controller):
         :return: An empty string to acknowledge the notification.
         :rtype: str
         """
-        data = request.get_json_data()
-        _logger.info("Notification received from Pagos360 with data:\n%s", pprint.pformat(data))
-        data['from_webhook'] = True
         try:
+            data = request.get_json_data()
+            _logger.info("Notification received from Pagos360 with data: %s", data)
+            data['from_webhook'] = True
             request.env['payment.transaction'].sudo()._handle_notification_data('pagos360', data)
         except ValidationError:  # Acknowledge the notification to avoid getting spammed
             _logger.exception("unable to handle the notification data; skipping to acknowledge")
