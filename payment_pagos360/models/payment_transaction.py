@@ -275,7 +275,7 @@ class PaymentTransaction(models.Model):
                 payload = tx.simulate_webhook('debit_request', data['data'][0])
                 tx.sudo()._process_notification_data(payload)
 
-            elif tx.pagos360_adhesion_type == 'card-adhesion' :
+            elif tx.pagos360_adhesion_type == 'card_adhesion' :
                 data = tx.provider_id._pagos360_make_request('/card-debit-request?id=%s' % tx.provider_reference, method='GET')
                 payload = self.simulate_webhook('card_debit_request', data['data'][0])
                 tx.sudo()._process_notification_data(payload)
