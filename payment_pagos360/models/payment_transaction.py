@@ -5,7 +5,7 @@ from werkzeug import urls
 from datetime import timedelta
 
 from odoo import _, models, fields
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 
 from ..controllers.main import Pagos360Controller
 
@@ -249,38 +249,57 @@ class PaymentTransaction(models.Model):
         return  self.provider_id._pagos360_make_request('debit-request', data=data, method='POST')
 
     def get_pagos360_info(self, check_payment_state=True):
-        for tx in self:
+        result_msg  = []
+        for tx in self.filtered(lambda x: x.provider_code == 'pagos360'):
             # Check state of adhesion
+            payload = False
             if tx.operation == 'validation':
                 datas = tx.provider_id._pagos360_make_request('/card-adhesion?external_reference=%s&page=1' % tx.reference, method='GET')
                 entity_name = 'card-adhesion'
                 for data in datas['data']:
                     payload = tx.simulate_webhook(entity_name, data)
+                    result_msg.append(payload)
                     tx.sudo()._process_notification_data(payload)
                 datas = tx.provider_id._pagos360_make_request('/adhesion?external_reference=%s&page=1' % tx.reference, method='GET')
                 entity_name = 'adhesion'
                 for data in datas['data']:
                     payload = tx.simulate_webhook(entity_name, data)
+                    result_msg.append(payload)
                     tx.sudo()._process_notification_data(payload)
-
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != 'validation':
                 #https://api.sandbox.pagos360.com/debit-request?page=1
-                data = tx.provider_id._pagos360_make_request('/payment-request/%s' % tx.reference, method='GET' )
-                payload = tx.simulate_webhook('payment_request', data)
+                data = tx.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % tx.reference, method='GET' )
+                payload = tx.simulate_webhook('payment_request', data['data'][0])
+                result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
             # Check state of payment
             elif tx.pagos360_adhesion_type == 'adhesion' :
                 data = tx.provider_id._pagos360_make_request('/debit-request?id=%s' % tx.provider_reference, method='GET')
                 payload = tx.simulate_webhook('debit_request', data['data'][0])
+                result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
 
             elif tx.pagos360_adhesion_type == 'card_adhesion' :
                 data = tx.provider_id._pagos360_make_request('/card-debit-request?id=%s' % tx.provider_reference, method='GET')
-                payload = self.simulate_webhook('card_debit_request', data['data'][0])
+                payload = tx.simulate_webhook('card_debit_request', data['data'][0])
+                result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
+            self.env.cr.commit()
+        return self.pagos360_readable_result(result_msg)
 
-        return str(payload)
+    def pagos360_readable_result(self,result_msg):
+        txt = []
+        for data in result_msg:
+            txt += ['---------------------------']
+            txt += ["external_reference: %s" % data['payload'].get('external_reference')]
+            txt += ["state: %s" % data['payload'].get('state')]
+            txt += ['---------------------------']
+            txt += ['%s: %s' % (x, data[x]) for x in data if x != 'payload']
+            txt += ['- %s: %s' % (x, data.get(x)) for x in data.get('payload', [])]
+            txt += ['---------------------------']
+
+        raise UserError("%s" % ' \n'.join(txt))
 
     def simulate_webhook(self, entity_name, data):
         return {'entity_name': entity_name, 'entity_id': data['id'], 'type': data['state'],'payload': data}
