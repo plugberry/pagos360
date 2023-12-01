@@ -253,14 +253,15 @@ class PaymentTransaction(models.Model):
         for tx in self.filtered(lambda x: x.provider_code == 'pagos360'):
             # Check state of adhesion
             payload = False
+            ref_sanitarzed = tx.reference.replace('%', '%25')
             if tx.operation == 'validation':
-                datas = tx.provider_id._pagos360_make_request('/card-adhesion?external_reference=%s&page=1' % tx.reference, method='GET')
+                datas = tx.provider_id._pagos360_make_request('/card-adhesion?external_reference=%s&page=1' % ref_sanitarzed, method='GET')
                 entity_name = 'card-adhesion'
                 for data in datas['data']:
                     payload = tx.simulate_webhook(entity_name, data)
                     result_msg.append(payload)
                     tx.sudo()._process_notification_data(payload)
-                datas = tx.provider_id._pagos360_make_request('/adhesion?external_reference=%s&page=1' % tx.reference, method='GET')
+                datas = tx.provider_id._pagos360_make_request('/adhesion?external_reference=%s&page=1' % ref_sanitarzed, method='GET')
                 entity_name = 'adhesion'
                 for data in datas['data']:
                     payload = tx.simulate_webhook(entity_name, data)
@@ -269,7 +270,7 @@ class PaymentTransaction(models.Model):
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != 'validation':
                 #https://api.sandbox.pagos360.com/debit-request?page=1
-                data = tx.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % tx.reference, method='GET' )
+                data = tx.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % ref_sanitarzed, method='GET' )
                 payload = tx.simulate_webhook('payment_request', data['data'][0])
                 result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
