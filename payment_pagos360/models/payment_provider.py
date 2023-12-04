@@ -115,7 +115,8 @@ class PaymentProvider(models.Model):
                 "card_debit_request.waived","debit_request.canceled","debit_request.paid","debit_request.refunded","debit_request.rejected",
                 "debit_request.reverted","debit_request.waived","payment_request.paid","payment_request.refunded","payment_request.rejected",
                 "payment_request.reverted","payment_request.transfer_canceled","payment_request.transfer_created",
-                "payment_request.transfer_rejected","payment_request.waived"]
+                "payment_request.transfer_rejected","payment_request.waived", "payment_request.banelco_pmc_created","payment_request.debin_created",
+                "payment_request.expired","payment_request.link_pagos_created"]
 
     def _get_event_types(self):
         event_types = list()
