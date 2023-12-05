@@ -1,10 +1,9 @@
-import uuid
 import logging
 import requests
 from werkzeug import urls
 
-from odoo import _, api, fields, models, Command
-from odoo.exceptions import UserError, ValidationError
+from odoo import _, api, fields, models
+from odoo.exceptions import  ValidationError
 
 from ..controllers.main import Pagos360Controller
 from ..const import API_URL, API_TEST_URL
@@ -53,9 +52,12 @@ class PaymentProvider(models.Model):
             response = requests.request(method, url, json=data, headers=headers, timeout=60)
             response.raise_for_status()
         except requests.exceptions.RequestException:
-            _logger.error(response.text)
             _logger.exception("Unable to communicate with Pagos360: %s", url)
-            raise ValidationError("Pagos360: " + _("Could not establish the connection to the API."))
+            _logger.error(response.text)
+            raise ValidationError("Pagos360: {error_title} \n ref: {error_ref}".format(
+                error_title = _("Could not establish the connection to the API."),
+                error_ref = response.text)
+            )
         return response.json()
 
     @api.depends('pagos360_api_key', 'pagos360_test_api_key')
@@ -120,7 +122,7 @@ class PaymentProvider(models.Model):
 
     def _get_event_types(self):
         event_types = list()
-        types = self._pagos360_make_request('/event-type', method='GET')
+        types = self._pagos360_make_request('/event-type?limit=50', method='GET')
         handled_event_types = self.handled_event_types()
         if types and types.get('data'):
             data = types.get('data')
