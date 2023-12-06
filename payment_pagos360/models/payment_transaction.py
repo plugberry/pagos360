@@ -211,19 +211,19 @@ class PaymentTransaction(models.Model):
         return super()._send_payment_request()
 
     def _pagos360_card_debit_request(self):
-        first_due_date, first_total = self.get_first_due_values()
+        next_business_day = fields.Datetime.from_string(self._pagos360_next_business_day(fields.Datetime.now())[:10]).strftime('%d-%m-%Y')
         data ={
             "card_debit_request": {
                 "description": _("Payment %s") % self.company_id.display_name,
                 "amount": self.amount,
-                "month": first_due_date.month,
-                "year": first_due_date.year,
+                "month": next_business_day.month,
+                "year": next_business_day.year,
                 "card_adhesion_id": int(self.token_id.provider_ref)
             }
         }
         return  self.provider_id._pagos360_make_request('card-debit-request', data=data, method='POST')
 
-    def _pagos360_next_business_day(self, due_date, days=2):
+    def _pagos360_next_business_day(self, due_date, days=3):
 
         data ={
             "next_business_day": {
@@ -235,8 +235,7 @@ class PaymentTransaction(models.Model):
 
 
     def _pagos360_debit_request(self):
-        first_due_date, first_total = self.get_first_due_values()
-        next_business_day = self._pagos360_next_business_day(first_due_date)
+        next_business_day = self._pagos360_next_business_day(fields.Datetime.now())
         data = {
             "debit_request": {
                 "description": _("Payment %s") % self.company_id.display_name,
@@ -270,8 +269,8 @@ class PaymentTransaction(models.Model):
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != 'validation':
                 #https://api.sandbox.pagos360.com/debit-request?page=1
-                data = tx.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % ref_sanitarzed, method='GET' )
-                payload = tx.simulate_webhook('payment_request', data['data'][0])
+                data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % ref_sanitarzed, method='GET' ))
+                payload = tx.simulate_webhook('payment_request', data)
                 result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
             # Check state of payment
@@ -289,6 +288,12 @@ class PaymentTransaction(models.Model):
             self.env.cr.commit()
         return self.pagos360_readable_result(result_msg)
 
+    def _get_operation_info_from_data(self, request_info):
+        for data in request_info['data']:
+            if data['external_reference'] == self.reference:
+                return data
+            return []
+
     def pagos360_readable_result(self,result_msg):
         txt = []
         for data in result_msg:
@@ -297,7 +302,7 @@ class PaymentTransaction(models.Model):
             txt += ["state: %s" % data['payload'].get('state')]
             txt += ['---------------------------']
             txt += ['%s: %s' % (x, data[x]) for x in data if x != 'payload']
-            txt += ['- %s: %s' % (x, data.get(x)) for x in data.get('payload', [])]
+            txt += ['- %s: %s' % (x, data.get('payload', []).get(x)) for x in data.get('payload', [])]
             txt += ['---------------------------']
 
         raise UserError("%s" % ' \n'.join(txt))
