@@ -131,7 +131,7 @@ class PaymentTransaction(models.Model):
         self.provider_reference = entity_id
         payment_status = notification_data.get('type')
 
-        if payment_status in ['pending', 'transfer_created', 'link_pagos_created', 'banelco_pmc_created']:
+        if payment_status in ['pending', 'pending_to_sign', 'transfer_created', 'link_pagos_created', 'banelco_pmc_created']:
             self._set_pending()
         elif payment_status == 'signed' and self.operation == 'validation':
                 self._set_done()
