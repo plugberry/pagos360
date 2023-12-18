@@ -255,7 +255,7 @@ class PaymentTransaction(models.Model):
             ref_sanitarzed = tx.reference.replace('%', '%25')
             if tx.operation == 'validation':
                 datas = tx.provider_id._pagos360_make_request('/card-adhesion?external_reference=%s&page=1' % ref_sanitarzed, method='GET')
-                entity_name = 'card-adhesion'
+                entity_name = 'card_adhesion'
                 for data in datas['data']:
                     payload = tx.simulate_webhook(entity_name, data)
                     result_msg.append(payload)
