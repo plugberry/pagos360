@@ -211,7 +211,7 @@ class PaymentTransaction(models.Model):
         return super()._send_payment_request()
 
     def _pagos360_card_debit_request(self):
-        next_business_day = fields.Datetime.from_string(self._pagos360_next_business_day(fields.Datetime.now())[:10]).strftime('%d-%m-%Y')
+        next_business_day = fields.Datetime.from_string(self._pagos360_next_business_day(fields.Datetime.now())[:10])
         data ={
             "card_debit_request": {
                 "description": _("Payment %s") % self.company_id.display_name,
