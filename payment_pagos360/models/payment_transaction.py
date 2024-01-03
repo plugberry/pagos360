@@ -146,7 +146,7 @@ class PaymentTransaction(models.Model):
                 self._set_canceled("PAGOS360: " + _("Canceled payment with status: %s", payment_status))
             if entity_name in ['card_adhesion', 'adhesion']:
                 if self.token_id and self.token_id.active == True:
-                    self.token_id.with_context(is_notification=True).update({'active': False})
+                    self.token_id.with_context(is_notification=True).write({'active': False})
         else:
             _logger.info(
                 "received data with invalid payment status (%s) for transaction with reference %s",
