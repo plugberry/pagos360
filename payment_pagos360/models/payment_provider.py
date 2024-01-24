@@ -54,10 +54,19 @@ class PaymentProvider(models.Model):
             response = requests.request(method, url, json=data, headers=headers, timeout=60)
             response.raise_for_status()
         except requests.exceptions.RequestException:
+<<<<<<< HEAD
             _logger.error(response.text)
             _logger.exception("Unable to communicate with Pagos360: %s", url)
             _logger.error("send data data: %s" % str(data))
             _logger.error("response.text: %s" % response.text)
+||||||| parent of f6e83cc (temp)
+            _logger.exception("Unable to communicate with Pagos360: %s", url)
+            _logger.error(response.text)
+=======
+            _logger.exception("Unable to communicate with Pagos360: %s", url)
+            _logger.error("send data data: %s" % str(data))
+            _logger.error("response.text: %s" % response.text)
+>>>>>>> f6e83cc (temp)
             raise ValidationError("Pagos360: {error_title} \n ref: {error_ref}".format(
                 error_title=_("Could not establish the connection to the API."),
                 error_ref=response.text)

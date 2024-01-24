@@ -242,11 +242,22 @@ class PaymentTransaction(models.Model):
         return super()._send_payment_request()
 
     def _pagos360_card_debit_request(self):
+<<<<<<< HEAD
         operation_date = fields.Date.today()
         cut_day = int(self.env['ir.config_parameter'].sudo().get_param('pagos360.cut_day', '19'))
         if operation_date.day > cut_day:
             operation_date = operation_date + relativedelta(months=1)
         data = {
+||||||| parent of f6e83cc (temp)
+        next_business_day = fields.Datetime.from_string(self._pagos360_next_business_day(fields.Datetime.now())[:10])
+        data ={
+=======
+        operation_date = fields.Date.today()
+        cut_day = int(self.env['ir.config_parameter'].sudo().get_param('pagos360.cut_day', '19'))
+        if operation_date.day > cut_day:
+            operation_date = operation_date + relativedelta(months=1)
+        data ={
+>>>>>>> f6e83cc (temp)
             "card_debit_request": {
                 "description": _("Payment %s") % self.company_id.display_name,
                 "amount": self.amount,
