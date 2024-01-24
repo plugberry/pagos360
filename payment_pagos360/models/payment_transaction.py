@@ -3,6 +3,7 @@ import pprint
 
 from werkzeug import urls
 from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 
 from odoo import _, models, fields
 from odoo.exceptions import ValidationError, UserError
@@ -231,17 +232,20 @@ class PaymentTransaction(models.Model):
         return super()._send_payment_request()
 
     def _pagos360_card_debit_request(self):
-        next_business_day = fields.Datetime.from_string(self._pagos360_next_business_day(fields.Datetime.now())[:10])
+        operation_date = fields.Date.today()
+        cut_day = int(self.env['ir.config_parameter'].sudo().get_param('pagos360.cut_day', '19'))
+        if operation_date.day > cut_day:
+            operation_date = operation_date + relativedelta(months=1)
         data ={
             "card_debit_request": {
                 "description": _("Payment %s") % self.company_id.display_name,
                 "amount": self.amount,
-                "month": next_business_day.month,
-                "year": next_business_day.year,
+                "month": operation_date.month,
+                "year": operation_date.year,
                 "card_adhesion_id": int(self.token_id.provider_ref)
             }
         }
-        return  self.provider_id._pagos360_make_request('card-debit-request', data=data, method='POST')
+        return self.provider_id._pagos360_make_request('card-debit-request', data=data, method='POST')
 
     def _pagos360_next_business_day(self, due_date, days=3):
 
