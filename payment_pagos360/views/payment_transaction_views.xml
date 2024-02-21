@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <record id="action_info_from_pagos360" model="ir.actions.server">
-        <field name="name">Check in Pagos360</field>
+        <field name="name">Check in (PAGOS360)</field>
         <field name="model_id" ref="payment.model_payment_transaction"/>
         <field name="state">code</field>
         <field name="code">records.get_pagos360_info()</field>
+        <field name="binding_model_id" ref="payment.model_payment_transaction"/>
+        <field name="binding_type">action</field>
+    </record>
+
+    <record id="action_pagos360_cancel_transaction" model="ir.actions.server">
+        <field name="name">Cancelar Transaccion (PAGOS360)</field>
+        <field name="model_id" ref="payment.model_payment_transaction"/>
+        <field name="state">code</field>
+        <field name="code">records.pagos360_cancel_transactions()</field>
         <field name="binding_model_id" ref="payment.model_payment_transaction"/>
         <field name="binding_type">action</field>
     </record>

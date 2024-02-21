@@ -312,6 +312,22 @@ class PaymentTransaction(models.Model):
             self.env.cr.commit()
         return self.pagos360_readable_result(result_msg)
 
+    def pagos360_cancel_transactions(self):
+        for tx in self.filtered(lambda t: t.pagos360_adhesion_type in ['adhesion', 'card_adhesion']):
+            payment_request_id = tx.provider_reference
+            if tx.pagos360_adhesion_type == 'adhesion':
+                endpoint = 'debit-request'
+            elif tx.pagos360_adhesion_type == 'card_adhesion':
+                endpoint = 'card-debit-request'
+            else:
+                continue
+            pagos360_tx = tx.provider_id._pagos360_make_request("/{endpoint}/{id}".format(endpoint=endpoint,id=payment_request_id), method='GET')
+            if pagos360_tx and pagos360_tx.get("state") == 'pending':
+                response_json = tx.provider_id._pagos360_make_request("/{endpoint}/{id}/cancel".format(endpoint=endpoint,id=payment_request_id), method='PUT')
+                if response_json and response_json.get("state") == 'canceled':
+                    tx._set_canceled()
+        return
+
     def _get_operation_info_from_data(self, request_info):
         for data in request_info['data']:
             if data['external_reference'] == self.reference:
