@@ -7,5 +7,5 @@ class AccountPaymentMethod(models.Model):
     @api.model
     def _get_payment_method_information(self):
         res = super()._get_payment_method_information()
-        res['pagos360'] = {'mode': 'unique', 'domain': [('type', '=', 'bank')]}
+        res['pagos360'] = {'mode': 'multi', 'domain': [('type', '=', 'bank')]}
         return res

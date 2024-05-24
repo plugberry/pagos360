@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 
 from odoo import _, models, fields
 from odoo.exceptions import ValidationError, UserError
+from odoo.addons.payment import utils as payment_utils
 
 from ..controllers.main import Pagos360Controller
 
@@ -40,9 +41,16 @@ class PaymentTransaction(models.Model):
         _logger.info("Sending '/payment-request' request for link creation:\n%s", pprint.pformat(payload))
 
         payment_data = self.provider_id._pagos360_make_request('/payment-request', data=payload)
-        checkout_url = payment_data['checkout_url']
+        if self.provider_id.pagos360_flow == 'payment_button':
+            api_url = payment_data['checkout_url']
+        elif self.provider_id.pagos360_flow == 'pagofacil':
+            access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
+            api_url = '/payment/pagos360/pagofacil?tx_id=%s&access_token=%s' %  (self.id, access_token)
+        elif self.provider_id.pagos360_flow == 'rapipago':
+            access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
+            api_url = '/payment/pagos360/rapipago?tx_id=%s&access_token=%s' %  (self.id, access_token)
 
-        return {'api_url': checkout_url,}
+        return {'api_url': api_url,}
 
     def _pagos360_prepare_preference_request_payload(self):
         """ Create the payload for the payment request based on the transaction values.

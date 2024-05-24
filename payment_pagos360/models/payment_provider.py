@@ -15,6 +15,7 @@ class PaymentProvider(models.Model):
 
     code = fields.Selection(
         selection_add=[('pagos360', "PAGOS360")], ondelete={'pagos360': 'set default'})
+    pagos360_flow = fields.Selection([('payment_button','Payment Button'),('rapipago', 'Rapipago'), ('pagofacil', 'Pago facil')],default='payment_button')
     pagos360_api_key = fields.Char(
         string="Api Key (PAGOS360)", groups='base.group_system')
     pagos360_test_api_key = fields.Char(
