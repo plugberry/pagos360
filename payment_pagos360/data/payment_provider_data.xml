@@ -6,6 +6,7 @@
         <field name="image_128" type="base64" file="payment_pagos360/static/description/icon.jpeg"/>
         <field name="module_id" ref="base.module_payment_pagos360"/>
         <field name="code">pagos360</field>
+        <field name="pagos360_flow">payment_button</field>
         <field name="redirect_form_view_id" ref="redirect_form"/>
         <field name="allow_tokenization">True</field>
         <field name="support_tokenization">True</field>
@@ -19,4 +20,33 @@
                    ref('payment.payment_icon_cc_american_express'),
                ])]"/>
     </record>
+    <record id="payment_provider_pagos360_pagofacil" model="payment.provider">
+        <field name="name">Pago Facil by PAGOS360</field>
+        <field name="display_as">Pagofacil (powered by Pagos360)</field>
+        <field name="image_128" type="base64" file="payment_pagos360/static/description/icon.jpeg"/>
+        <field name="module_id" ref="base.module_payment_pagos360"/>
+        <field name="code">pagos360</field>
+        <field name="pagos360_flow">pagofacil</field>
+        <field name="redirect_form_view_id" ref="redirect_form"/>
+        <field name="allow_tokenization">True</field>
+        <field name="support_tokenization">True</field>
+        <field name="support_manual_capture">True</field>
+        <!-- <field name="express_checkout_form_view_id" ref="express_checkout_form"/>
+        <field name="allow_express_checkout">True</field> -->
+    </record>
+    <record id="payment_provider_pagos360_rapipago" model="payment.provider">
+        <field name="name">Rapipago by PAGOS360</field>
+        <field name="display_as">Rapipago (powered by Pagos360)</field>
+        <field name="image_128" type="base64" file="payment_pagos360/static/description/icon.jpeg"/>
+        <field name="module_id" ref="base.module_payment_pagos360"/>
+        <field name="code">pagos360</field>
+        <field name="pagos360_flow">rapipago</field>
+        <field name="redirect_form_view_id" ref="redirect_form"/>
+        <field name="allow_tokenization">True</field>
+        <field name="support_tokenization">True</field>
+        <field name="support_manual_capture">True</field>
+        <!-- <field name="express_checkout_form_view_id" ref="express_checkout_form"/>
+        <field name="allow_express_checkout">True</field> -->
+    </record>
+
 </odoo>

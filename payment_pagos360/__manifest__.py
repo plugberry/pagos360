@@ -1,6 +1,6 @@
 {
     'name': 'Payment Provider: Pagos 360',
-    'version': '16.0.2.0',
+    'version': '16.0.3.0',
     'category': 'Accounting/Payment Providers',
     'sequence': 350,
     'depends': ['account_payment'],

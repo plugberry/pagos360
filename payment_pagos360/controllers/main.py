@@ -4,6 +4,7 @@ import pprint
 from odoo import http
 from odoo.exceptions import ValidationError
 from odoo.http import request, Response
+import re
 
 
 _logger = logging.getLogger(__name__)
@@ -12,6 +13,12 @@ _logger = logging.getLogger(__name__)
 class Pagos360Controller(http.Controller):
     _return_url = '/payment/pagos360/return'
     _webhook_url = '/payment/pagos360/webhook'
+
+    @http.route('/payment/pagos360/rapipago/<string:barcode>', type='http', auth='public', website=True)
+    def pagos360_rapipago_barcode(self, barcode):
+        values = {'barcode': re.sub("[^0-9a-zA-Z\-]+", "", barcode)}
+        return request.render("payment_pagos360.rapipago_barcode_print", values)
+
 
     @http.route(
         _return_url, type='http', auth='public', methods=['GET', 'POST'], csrf=False,

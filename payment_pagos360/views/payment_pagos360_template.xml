@@ -15,5 +15,14 @@
             </p>
         </div>
     </template>
-
+    <template id="rapipago_barcode_print" name="Pagos 360 barcode_print">
+        <t t-set="no_breadcrumbs" t-value="True"/>
+        <t t-call="portal.portal_layout">
+            <h1>Pagar Mediante Rapipago</h1>
+            <div>
+            <p>Imprima este codigo para abonar en la red de rapipago</p>
+            <img t-attf-src="https://api.pagos360.com/payment-request/barcode/barcode_print/{barcode}"/>
+            </div>
+        </t>
+    </template>
 </odoo>

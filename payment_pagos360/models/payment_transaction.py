@@ -40,9 +40,15 @@ class PaymentTransaction(models.Model):
         _logger.info("Sending '/payment-request' request for link creation:\n%s", pprint.pformat(payload))
 
         payment_data = self.provider_id._pagos360_make_request('/payment-request', data=payload)
-        checkout_url = payment_data['checkout_url']
+        import pdb; pdb.set_trace()
+        if self.provider_id.pagos360_flow == 'payment_button':
+            api_url = payment_data['checkout_url']
+        elif self.provider_id.pagos360_flow == 'pagofacil':
+            api_url = payment_data['pdf_url']
+        elif self.provider_id.pagos360_flow == 'rapipago':
+            api_url = '/payment/pagos360/rapipago/%s' % payment_data['rapipago_barcode']
 
-        return {'api_url': checkout_url,}
+        return {'api_url': api_url,}
 
     def _pagos360_prepare_preference_request_payload(self):
         """ Create the payload for the payment request based on the transaction values.
