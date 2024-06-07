@@ -13,6 +13,8 @@
             </group>
             <group name="provider_credentials" position='inside'>
                 <group attrs="{'invisible': [('code', '!=', 'pagos360')]}">
+                    <field name="pagos360_flow"
+                           attrs="{'required':[('code', '=', 'pagos360'), ('state', '=', 'enabled')]}"/>
                     <field name="pagos360_api_key" password="True"
                            attrs="{'required':[('code', '=', 'pagos360'), ('state', '=', 'enabled')], 'invisible':[('state', '!=', 'enabled')]}"/>
                     <field name="pagos360_test_api_key" password="True"
