@@ -7,25 +7,25 @@
         <field name="inherit_id" ref="payment.payment_provider_form"/>
         <field name="arch" type="xml">
             <group name="provider_credentials" position="before">
-                <div attrs="{'invisible': [('code', '!=', 'pagos360')]}">
+                <div invisible="code != 'pagos360'">
                     <button string="Ensure Webhook" type="object" name="ensure_webhook" class="btn-primary mb-3" colspan="2" />
                 </div>
             </group>
             <group name="provider_credentials" position='inside'>
-                <group attrs="{'invisible': [('code', '!=', 'pagos360')]}">
-                    <field name="pagos360_flow"
-                           attrs="{'required':[('code', '=', 'pagos360'), ('state', '=', 'enabled')]}"/>
+                <group invisible="code != 'pagos360'">
                     <field name="pagos360_api_key" password="True"
-                           attrs="{'required':[('code', '=', 'pagos360'), ('state', '=', 'enabled')], 'invisible':[('state', '!=', 'enabled')]}"/>
+                           invisible="state != 'enabled'"
+                           required="code == 'pagos360' and state == 'enabled'"/>
                     <field name="pagos360_test_api_key" password="True"
-                           attrs="{'required':[('code', '=', 'pagos360'), ('state', '=', 'test')], 'invisible':[('state', '!=', 'test')]}"/>
+                           invisible="state != 'test'"
+                           required="code == 'pagos360' and state == 'test'"/>
                 </group>
             </group>
-            <field name="display_as" position="before">
-                <field name="pagos360_form_url" attrs="{'invisible': [('code', '!=', 'pagos360')]}"/>
+            <field name="allow_tokenization" position="before">
+                <field name="pagos360_form_url" invisible="code != 'pagos360'"/>
             </field>
             <xpath expr="//page[@name='configuration']" position="after">
-                <page string="Fees and Due dates" name="fees_and_due_dates" attrs="{'invisible': [('code', '!=', 'pagos360')]}">
+                <page string="Fees and Due dates" name="fees_and_due_dates" invisible="code != 'pagos360'">
                     <group name="fees_and_due_dates">
                         <field name="validity_days"/>
                         <!-- <field name="second_validity_days"/>

@@ -3,19 +3,19 @@ import requests
 from werkzeug import urls
 
 from odoo import _, api, fields, models
-from odoo.exceptions import  ValidationError
+from odoo.exceptions import ValidationError
 
 from ..controllers.main import Pagos360Controller
-from ..const import API_URL, API_TEST_URL
+from .. import const
 
 _logger = logging.getLogger(__name__)
+
 
 class PaymentProvider(models.Model):
     _inherit = 'payment.provider'
 
     code = fields.Selection(
         selection_add=[('pagos360', "PAGOS360")], ondelete={'pagos360': 'set default'})
-    pagos360_flow = fields.Selection([('payment_button','Payment Button'),('rapipago', 'Rapipago'), ('pagofacil', 'Pago facil')],default='payment_button')
     pagos360_api_key = fields.Char(
         string="Api Key (PAGOS360)", groups='base.group_system')
     pagos360_test_api_key = fields.Char(
@@ -29,9 +29,9 @@ class PaymentProvider(models.Model):
     def _pagos360_get_api_url(self):
         self.ensure_one()
         if self.state == 'enabled':
-            return API_URL
+            return const.API_URL
         else:
-            return API_TEST_URL
+            return const.API_TEST_URL
 
     def _pagos360_get_api_key(self):
         self.ensure_one()
@@ -57,8 +57,8 @@ class PaymentProvider(models.Model):
             _logger.error("send data data: %s" % str(data))
             _logger.error("response.text: %s" % response.text)
             raise ValidationError("Pagos360: {error_title} \n ref: {error_ref}".format(
-                error_title = _("Could not establish the connection to the API."),
-                error_ref = response.text)
+                error_title=_("Could not establish the connection to the API."),
+                error_ref=response.text)
             )
         return response.json()
 
@@ -112,15 +112,10 @@ class PaymentProvider(models.Model):
                     else:
                         self._pagos360_make_request('/webhook/%s' % webhook_id, method='DELETE')
         return False
+
     def handled_event_types(self):
         # Se puede heredar en otros modulos para agregar nuevos webhooks
-        return ["adhesion.canceled","adhesion.signed","card_adhesion.canceled","card_adhesion.signed","card_debit_request.canceled",
-                "card_debit_request.paid","card_debit_request.refunded","card_debit_request.rejected","card_debit_request.reverted",
-                "card_debit_request.waived","debit_request.canceled","debit_request.paid","debit_request.refunded","debit_request.rejected",
-                "debit_request.reverted","debit_request.waived","payment_request.paid","payment_request.refunded","payment_request.rejected",
-                "payment_request.reverted","payment_request.transfer_canceled","payment_request.transfer_created",
-                "payment_request.transfer_rejected","payment_request.waived", "payment_request.banelco_pmc_created","payment_request.debin_created",
-                "payment_request.expired","payment_request.link_pagos_created"]
+        return const.EVENT_TYPES
 
     def _get_event_types(self):
         event_types = list()
@@ -128,16 +123,23 @@ class PaymentProvider(models.Model):
         handled_event_types = self.handled_event_types()
         if types and types.get('data'):
             data = types.get('data')
-            event_types  = [x['id'] for x in data if x['name'] in handled_event_types]
+            event_types = [x['id'] for x in data if x['name'] in handled_event_types]
         return event_types
 
-    #=== COMPUTE METHODS ===#
+    # === COMPUTE METHODS ===#
 
     def _compute_feature_support_fields(self):
         """ Override of `payment` to enable additional features. """
         super()._compute_feature_support_fields()
         self.filtered(lambda p: p.code == 'pagos360').update({
-            'support_manual_capture': True,
+            'support_manual_capture': 'full_only',
             'support_refund': 'full_only',
             'support_tokenization': True,
         })
+
+    def _get_default_payment_method_codes(self):
+        """ Override of `payment` to return the default payment method codes. """
+        default_codes = super()._get_default_payment_method_codes()
+        if self.code != 'pagos360':
+            return default_codes
+        return const.DEFAULT_PAYMENT_METHODS_CODES

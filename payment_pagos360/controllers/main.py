@@ -8,18 +8,16 @@ from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import ValidationError
 from odoo.http import request, Response
 from odoo.addons.portal.controllers import portal
-import re
 
 
 _logger = logging.getLogger(__name__)
-
 
 
 class Pagos360Controller(portal.CustomerPortal):
     _return_url = '/payment/pagos360/return'
     _webhook_url = '/payment/pagos360/webhook'
 
-    @http.route('/payment/pagos360/pagofacil', type='http', methods=['GET', 'POST'], auth='public', website=True,csrf=False)
+    @http.route('/payment/pagos360/pagofacil', type='http', methods=['GET', 'POST'], auth='public', website=True, csrf=False)
     def pagofacil_barcode(self, tx_id, access_token, **kwargs):
         """ Display the payment confirmation page to the user.
 
@@ -37,7 +35,7 @@ class Pagos360Controller(portal.CustomerPortal):
                 access_token, tx_sudo.partner_id.id, tx_sudo.amount, tx_sudo.currency_id.id
             ):
                 raise werkzeug.exceptions.NotFound()  # Don't leak information about ids.
-            if tx_sudo.provider_id.code !=  'pagos360' or tx_sudo.state not in ['draft', 'pending']:
+            if tx_sudo.provider_id.code != 'pagos360' or tx_sudo.state not in ['draft', 'pending']:
                 return request.redirect('/my/home')
 
             ref_sanitarzed = tx_sudo.reference.replace('%', '%25')
@@ -47,8 +45,7 @@ class Pagos360Controller(portal.CustomerPortal):
             # Display the portal homepage to the user
             return request.redirect('/my/home')
 
-
-    @http.route('/payment/pagos360/rapipago', type='http', methods=['GET', 'POST'], auth='public', website=True,csrf=False)
+    @http.route('/payment/pagos360/rapipago', type='http', methods=['GET', 'POST'], auth='public', website=True, csrf=False)
     def rapipago_barcode(self, tx_id, access_token, **kwargs):
         """ Display the payment confirmation page to the user.
 
@@ -66,7 +63,7 @@ class Pagos360Controller(portal.CustomerPortal):
                 access_token, tx_sudo.partner_id.id, tx_sudo.amount, tx_sudo.currency_id.id
             ):
                 raise werkzeug.exceptions.NotFound()  # Don't leak information about ids.
-            if tx_sudo.provider_id.code !=  'pagos360' or tx_sudo.state not in ['draft', 'pending']:
+            if tx_sudo.provider_id.code != 'pagos360' or tx_sudo.state not in ['draft', 'pending']:
                 return request.redirect('/my/home')
 
             ref_sanitarzed = tx_sudo.reference.replace('%', '%25')
@@ -87,7 +84,6 @@ class Pagos360Controller(portal.CustomerPortal):
         """
         _logger.info("handling redirection from Pagos360 with data:\n%s", pprint.pformat(data))
         return request.redirect('/payment/status')
-
 
     @http.route(
         f'{_webhook_url}', type='http', auth='public', methods=['POST'], csrf=False
