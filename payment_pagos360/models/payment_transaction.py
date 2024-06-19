@@ -3,9 +3,11 @@ import pprint
 
 from werkzeug import urls
 from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 
 from odoo import _, models, fields
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
+from odoo.addons.payment import utils as payment_utils
 
 from ..controllers.main import Pagos360Controller
 
@@ -16,8 +18,7 @@ _logger = logging.getLogger(__name__)
 class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
 
-    pagos360_adhesion_type = fields.Selection(related='token_id.pagos360_adhesion_type', store= True)
-
+    pagos360_adhesion_type = fields.Selection(related='token_id.pagos360_adhesion_type', store=True)
 
     def _get_specific_rendering_values(self, processing_values):
         """ Override of `payment` to return Pagos360-specific rendering values.
@@ -32,16 +33,23 @@ class PaymentTransaction(models.Model):
         if self.provider_code != 'pagos360':
             return res
         if self.operation == 'validation':
-            return {'api_url': "%s&pReference=%s" % (self.provider_id.pagos360_form_url, self.reference) }
+            return {'api_url': "%s&pReference=%s" % (self.provider_id.pagos360_form_url, self.reference)}
 
         # Initiate the payment and retrieve the payment link data.
         payload = self._pagos360_prepare_preference_request_payload()
         _logger.info("Sending '/payment-request' request for link creation:\n%s", pprint.pformat(payload))
 
         payment_data = self.provider_id._pagos360_make_request('/payment-request', data=payload)
-        checkout_url = payment_data['checkout_url']
+        if self.payment_method_code == 'card':
+            api_url = payment_data['checkout_url']
+        elif self.payment_method_code == 'pagofacil':
+            access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
+            api_url = '/payment/pagos360/pagofacil?tx_id=%s&access_token=%s' % (self.id, access_token)
+        elif self.payment_method_code == 'rapipago':
+            access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
+            api_url = '/payment/pagos360/rapipago?tx_id=%s&access_token=%s' % (self.id, access_token)
 
-        return {'api_url': checkout_url,}
+        return {'api_url': api_url, }
 
     def _pagos360_prepare_preference_request_payload(self):
         """ Create the payload for the payment request based on the transaction values.
@@ -56,7 +64,7 @@ class PaymentTransaction(models.Model):
         # second_due_date, second_total = self.get_second_due_values()
 
         return {
-            'payment_request':{
+            'payment_request': {
                 'description': self.reference,
                 'external_reference': self.reference,   # No requerido
                 'payer_name': self.partner_name,
@@ -131,36 +139,55 @@ class PaymentTransaction(models.Model):
         self.provider_reference = entity_id
         payment_status = notification_data.get('type')
 
-        if payment_status in ['pending', 'transfer_created', 'link_pagos_created', 'banelco_pmc_created']:
-            self._set_pending()
-        elif payment_status == 'signed' and self.operation == 'validation':
+        try:
+            if payment_status in ['pending', 'in_process', 'pending_to_sign', 'transfer_created', 'link_pagos_created', 'banelco_pmc_created']:
+                if self.state != 'pending':
+                    self._set_pending()
+            elif payment_status == 'signed' and self.operation == 'validation':
                 self._set_done()
                 if not self.token_id:
                     self._pagos360_tokenize_from_feedback_data(notification_data)
-        elif payment_status == 'paid':
-            self._set_done()
-        elif payment_status in ['expired', 'canceled', 'rejected','transfer_canceled']:
-            # Solo cambio el estado en los casos que puedo hacerlo.
-            # las autorizaciones se pueden cancelar cuando estan ya en done
-            if self.state in ['draft', 'pending','authorized']:
-                self._set_canceled("PAGOS360: " + _("Canceled payment with status: %s", payment_status))
-            if entity_name in ['card_adhesion', 'adhesion']:
-                if self.token_id and self.token_id.active == True:
-                    self.token_id.with_context(is_notification=True).update({'active': False})
-        else:
+            elif payment_status == 'paid':
+                self._set_done()
+            elif payment_status in ['expired', 'canceled', 'rejected', 'transfer_canceled']:
+                # Solo cambio el estado en los casos que puedo hacerlo.
+                # las autorizaciones se pueden cancelar cuando estan ya en done
+                if self.state in ['draft', 'pending', 'authorized']:
+                    self._set_canceled("PAGOS360: " + _("Canceled payment with status: %s", payment_status))
+                if entity_name in ['card_adhesion', 'adhesion']:
+                    if self.token_id and self.token_id.active:
+                        self.token_id.with_context(is_notification=True).write({'active': False})
+            else:
+                _logger.info(
+                    "received data with invalid payment status (%s) for transaction with reference %s",
+                    payment_status, self.reference
+                )
+                message = """
+                    Parece que esta transacción no se pudo realizar, ante algún inconveniente por favor comunicarse a
+                     través de los siguientes canales:<br/>
+                    Correo Electrónico: soporte@pagos360.com.ar<br/>
+                    WhatsApp: +54 3512548747\n
+                    Información:\n
+                    - Transacción PAGOS360: {transaction}<br/>
+                    - Código de Error: {error_code}<br/>
+                    - Mensaje de Error": {error_msg}<br/>
+                """.format(transaction=self.provider_reference, error_code=payment_status, error_msg='')
+                self._set_error("PAGOS360: " + message)
+        except Exception as e:
             _logger.info(
-                "received data with invalid payment status (%s) for transaction with reference %s",
-                payment_status, self.reference
+                "PAGOS360 Error: (%s) for transaction with id %s",
+                e, self.id
             )
             message = """
-                Parece que esta transacción no se pudo realizar, ante algún inconveniente por favor comunicarse a través de los siguientes canales:<br/>
-                Correo Electrónico: soporte@pagos360.com.ar<br/>
-                WhatsApp: +54 3512548747<br/>
-                Información:<br/>
-                - Transacción PAGOS360: {transaction}<br/>
-                - Código de Error: {error_code}<br/>
+                Parece que esta transacción no se pudo realizar, le sugerimos revisar en su portal de PAGOS360 el
+                 estado de la solicitud de pago.
+                Ante algún inconveniente con la misma por favor comunicarse a través de los siguientes canales:
+                Correo Electrónico: soporte@pagos360.com.ar\n
+                WhatsApp: +54 3512548747\n
+                Información:\n
+                - Transacción id: {transaction}<br/>
                 - Mensaje de Error": {error_msg}<br/>
-            """.format(transaction=self.provider_reference, error_code=payment_status, error_msg='')
+            """.format(transaction=self.id,  error_msg=e)
             self._set_error("PAGOS360: " + message)
 
     def _pagos360_tokenize_from_feedback_data(self, notification_data):
@@ -180,18 +207,19 @@ class PaymentTransaction(models.Model):
 
         adhesion_data = self.provider_id._pagos360_make_request(endpoint, data=None, method='GET')
         if adhesion_data:
-            token = self.env['payment.token'].create({
+            token_vals = {
                 'provider_id': self.provider_id.id,
                 'partner_id': self.partner_id.id,
-                'verified': True,
                 'provider_ref': adhesion_id,
+                'payment_method_id': self.payment_method_id.id,
                 'pagos360_adhesion_type': notification_data['entity_name'],
                 'pagos360_external_reference': adhesion_data['external_reference'],
                 'pagos360_card': adhesion_data['card'] if notification_data['entity_name'] == 'card_adhesion' else None,
                 'pagos360_card_number': adhesion_data['last_four_digits'] if notification_data['entity_name'] == 'card_adhesion' else None,
                 'pagos360_cbu_number': adhesion_data['cbu_number'] if notification_data['entity_name'] == 'adhesion' else None,
                 'pagos360_bank': adhesion_data['bank'] if notification_data['entity_name'] == 'adhesion' else None,
-            })
+            }
+            token = self.env['payment.token'].create(token_vals)
             self.write({
                 'token_id': token.id,
                 'tokenize': False,
@@ -204,35 +232,39 @@ class PaymentTransaction(models.Model):
         if self.provider_code == 'pagos360':
             if self.token_id.pagos360_adhesion_type == 'card_adhesion':
                 req = self._pagos360_card_debit_request()
-                self._process_notification_data(self.simulate_webhook('card_adhesion',req))
+                self._process_notification_data(self.simulate_webhook('card_adhesion', req))
             if self.token_id.pagos360_adhesion_type == 'adhesion':
                 req = self._pagos360_debit_request()
-                self._process_notification_data(self.simulate_webhook('adhesion',req))
+            self.env.cr.commit()
+            if req:
+                self._process_notification_data(self.simulate_webhook(self.token_id.pagos360_adhesion_type, req))
+                self.env.cr.commit()
         return super()._send_payment_request()
 
     def _pagos360_card_debit_request(self):
-        first_due_date, first_total = self.get_first_due_values()
-        data ={
+        operation_date = fields.Date.today()
+        cut_day = int(self.env['ir.config_parameter'].sudo().get_param('pagos360.cut_day', '19'))
+        if operation_date.day > cut_day:
+            operation_date = operation_date + relativedelta(months=1)
+        data = {
             "card_debit_request": {
                 "description": _("Payment %s") % self.company_id.display_name,
                 "amount": self.amount,
-                "month": first_due_date.month,
-                "year": first_due_date.year,
+                "month": operation_date.month,
+                "year": operation_date.year,
                 "card_adhesion_id": int(self.token_id.provider_ref)
             }
         }
-        return  self.provider_id._pagos360_make_request('card-debit-request', data=data, method='POST')
+        return self.provider_id._pagos360_make_request('card-debit-request', data=data, method='POST')
 
-    def _pagos360_next_business_day(self, due_date, days=2):
-
-        data ={
+    def _pagos360_next_business_day(self, due_date, days=3):
+        data = {
             "next_business_day": {
                 "date": due_date.strftime('%d-%m-%Y'),
                 "days": days
             }
         }
-        return  self.provider_id._pagos360_make_request('validator/next-business-day', data=data, method='POST')
-
+        return self.provider_id._pagos360_make_request('validator/next-business-day', data=data, method='POST')
 
     def _pagos360_debit_request(self):
         first_due_date, first_total = self.get_first_due_values()
@@ -246,41 +278,83 @@ class PaymentTransaction(models.Model):
                 "adhesion_id": int(self.token_id.provider_ref)
             }
         }
-        return  self.provider_id._pagos360_make_request('debit-request', data=data, method='POST')
+        return self.provider_id._pagos360_make_request('debit-request', data=data, method='POST')
 
     def get_pagos360_info(self, check_payment_state=True):
-        for tx in self:
+        result_msg = []
+        for tx in self.filtered(lambda x: x.provider_code == 'pagos360'):
             # Check state of adhesion
+            payload = False
+            ref_sanitarzed = tx.reference.replace('%', '%25')
             if tx.operation == 'validation':
-                datas = tx.provider_id._pagos360_make_request('/card-adhesion?external_reference=%s&page=1' % tx.reference, method='GET')
-                entity_name = 'card-adhesion'
+                datas = tx.provider_id._pagos360_make_request('/card-adhesion?external_reference=%s&page=1' % ref_sanitarzed, method='GET')
+                entity_name = 'card_adhesion'
                 for data in datas['data']:
                     payload = tx.simulate_webhook(entity_name, data)
+                    result_msg.append(payload)
                     tx.sudo()._process_notification_data(payload)
-                datas = tx.provider_id._pagos360_make_request('/adhesion?external_reference=%s&page=1' % tx.reference, method='GET')
+                datas = tx.provider_id._pagos360_make_request('/adhesion?external_reference=%s&page=1' % ref_sanitarzed, method='GET')
                 entity_name = 'adhesion'
                 for data in datas['data']:
                     payload = tx.simulate_webhook(entity_name, data)
+                    result_msg.append(payload)
                     tx.sudo()._process_notification_data(payload)
 
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != 'validation':
-                #https://api.sandbox.pagos360.com/debit-request?page=1
-                data = tx.provider_id._pagos360_make_request('/payment-request/%s' % tx.reference, method='GET' )
+                # https://api.sandbox.pagos360.com/debit-request?page=1
+                data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % ref_sanitarzed, method='GET' ))
                 payload = tx.simulate_webhook('payment_request', data)
+                result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
             # Check state of payment
-            elif tx.pagos360_adhesion_type == 'adhesion' :
+            elif tx.pagos360_adhesion_type == 'adhesion':
                 data = tx.provider_id._pagos360_make_request('/debit-request?id=%s' % tx.provider_reference, method='GET')
                 payload = tx.simulate_webhook('debit_request', data['data'][0])
+                result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
 
-            elif tx.pagos360_adhesion_type == 'card-adhesion' :
+            elif tx.pagos360_adhesion_type == 'card_adhesion':
                 data = tx.provider_id._pagos360_make_request('/card-debit-request?id=%s' % tx.provider_reference, method='GET')
                 payload = self.simulate_webhook('card_debit_request', data['data'][0])
                 tx.sudo()._process_notification_data(payload)
+            self.env.cr.commit()
+        return self.pagos360_readable_result(result_msg)
 
-        return str(payload)
+    def pagos360_cancel_transactions(self):
+        for tx in self.filtered(lambda t: t.pagos360_adhesion_type in ['adhesion', 'card_adhesion']):
+            payment_request_id = tx.provider_reference
+            if tx.pagos360_adhesion_type == 'adhesion':
+                endpoint = 'debit-request'
+            elif tx.pagos360_adhesion_type == 'card_adhesion':
+                endpoint = 'card-debit-request'
+            else:
+                continue
+            pagos360_tx = tx.provider_id._pagos360_make_request("/{endpoint}/{id}".format(endpoint=endpoint, id=payment_request_id), method='GET')
+            if pagos360_tx and pagos360_tx.get("state") == 'pending':
+                response_json = tx.provider_id._pagos360_make_request("/{endpoint}/{id}/cancel".format(endpoint=endpoint, id=payment_request_id), method='PUT')
+                if response_json and response_json.get("state") == 'canceled':
+                    tx._set_canceled()
+        return
+
+    def _get_operation_info_from_data(self, request_info):
+        for data in request_info['data']:
+            if data['external_reference'] == self.reference:
+                return data
+            return []
+
+    def pagos360_readable_result(self, result_msg):
+        txt = []
+        for data in result_msg:
+            txt += ['---------------------------']
+            txt += ["external_reference: %s" % data['payload'].get('external_reference')]
+            txt += ["state: %s" % data['payload'].get('state')]
+            txt += ['---------------------------']
+            txt += ['%s: %s' % (x, data[x]) for x in data if x != 'payload']
+            txt += ['- %s: %s' % (x, data.get('payload', []).get(x)) for x in data.get('payload', [])]
+            txt += ['---------------------------']
+
+        raise UserError("%s" % ' \n'.join(txt))
 
     def simulate_webhook(self, entity_name, data):
-        return {'entity_name': entity_name, 'entity_id': data['id'], 'type': data['state'],'payload': data}
+        return {'entity_name': entity_name, 'entity_id': data['id'], 'type': data['state'], 'payload': data}

@@ -1,22 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="payment_method_pagofacil" model="payment.method">
+        <field name="sequence">10</field>
+        <field name="name">PagoFacil</field>
+        <field name="code">pagofacil</field>
+        <field name="active">True</field>
+        <field name="image" type="base64" file="payment_pagos360/static/img/pagofacil.png"/>
+    </record>
+
+    <record id="payment_method_rapipago" model="payment.method">
+        <field name="sequence">20</field>
+        <field name="name">RapiPago</field>
+        <field name="code">rapipago</field>
+        <field name="active">True</field>
+        <field name="image" type="base64" file="payment_pagos360/static/img/rapipago.png"/>
+    </record>
+
     <record id="payment_provider_pagos360" model="payment.provider">
-        <field name="name">PAGOS360</field>
-        <field name="display_as">Credit &amp; Debit Card (powered by Pagos360)</field>
+        <field name="name">Credit &amp; Debit Card (powered by Pagos360)</field>
         <field name="image_128" type="base64" file="payment_pagos360/static/description/icon.jpeg"/>
         <field name="module_id" ref="base.module_payment_pagos360"/>
         <field name="code">pagos360</field>
         <field name="redirect_form_view_id" ref="redirect_form"/>
         <field name="allow_tokenization">True</field>
         <field name="support_tokenization">True</field>
-        <field name="support_manual_capture">True</field>
+        <field name="support_manual_capture">partial</field>
         <!-- <field name="express_checkout_form_view_id" ref="express_checkout_form"/>
         <field name="allow_express_checkout">True</field> -->
-        <field name="payment_icon_ids"
-               eval="[(6, 0, [
-                   ref('payment.payment_icon_cc_visa'),
-                   ref('payment.payment_icon_cc_mastercard'),
-                   ref('payment.payment_icon_cc_american_express'),
+        <field name="payment_method_ids"
+               eval="[Command.set([
+                   ref('payment.payment_method_card'),
+                   ref('payment_pagos360.payment_method_pagofacil'),
+                   ref('payment_pagos360.payment_method_rapipago'),
                ])]"/>
     </record>
+
 </odoo>
