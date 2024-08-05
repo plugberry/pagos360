@@ -132,7 +132,6 @@ class PaymentProvider(models.Model):
         return event_types
 
     #=== COMPUTE METHODS ===#
-
     def _compute_feature_support_fields(self):
         """ Override of `payment` to enable additional features. """
         super()._compute_feature_support_fields()
