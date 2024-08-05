@@ -128,8 +128,15 @@ class PaymentProvider(models.Model):
             event_types = [x['id'] for x in data if x['name'] in handled_event_types]
         return event_types
 
+<<<<<<< HEAD
     # === COMPUTE METHODS ===#
 
+||||||| parent of c0a77c4 (temp)
+    #=== COMPUTE METHODS ===#
+
+=======
+    #=== COMPUTE METHODS ===#
+>>>>>>> c0a77c4 (temp)
     def _compute_feature_support_fields(self):
         """ Override of `payment` to enable additional features. """
         super()._compute_feature_support_fields()

@@ -11,7 +11,6 @@ from odoo.addons.payment import utils as payment_utils
 
 from ..controllers.main import Pagos360Controller
 
-
 _logger = logging.getLogger(__name__)
 
 
@@ -149,7 +148,17 @@ class PaymentTransaction(models.Model):
                     self._pagos360_tokenize_from_feedback_data(notification_data)
             elif payment_status == 'paid':
                 self._set_done()
+<<<<<<< HEAD
             elif payment_status in ['expired', 'canceled', 'rejected', 'transfer_canceled']:
+||||||| parent of c0a77c4 (temp)
+            elif payment_status in ['expired', 'canceled', 'rejected','transfer_canceled']:
+=======
+            elif payment_status == 'reverted':
+                self.payment_id.action_draft()
+                self.payment_id.action_cancel()
+                self._set_canceled("PAGOS360: " + _("Canceled payment with status: %s", payment_status))
+            elif payment_status in ['expired', 'canceled', 'rejected','transfer_canceled']:
+>>>>>>> c0a77c4 (temp)
                 # Solo cambio el estado en los casos que puedo hacerlo.
                 # las autorizaciones se pueden cancelar cuando estan ya en done
                 if self.state in ['draft', 'pending', 'authorized']:
