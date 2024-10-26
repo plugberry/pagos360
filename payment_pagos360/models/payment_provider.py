@@ -66,7 +66,7 @@ class PaymentProvider(models.Model):
 
     @api.depends('pagos360_api_key', 'pagos360_test_api_key')
     def ensure_webhook(self):
-        base_url = self.get_base_url().replace('http:','https:')
+        base_url = self.get_base_url().replace('http:', 'https:')
         webhook_url = urls.url_join(base_url, Pagos360Controller._webhook_url)
 
         message = _("Your Pagos360 Webhook was already set up.")

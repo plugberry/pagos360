@@ -28,7 +28,7 @@ class PaymentToken(models.Model):
 
     def write(self, values):
         res = super().write(values)
-        if 'active' in values and values['active'] == False and not self.env.context.get('is_notification'):
+        if 'active' in values and values['active'] is False and not self.env.context.get('is_notification'):
             for rec in self.filtered(lambda x: x.provider_code == 'pagos360'):
                 endpoint = 'adhesion' if rec.pagos360_adhesion_type == 'adhesion' else 'card-adhesion'
                 id = rec.provider_ref
