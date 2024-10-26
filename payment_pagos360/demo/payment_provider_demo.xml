@@ -4,4 +4,15 @@
         <field name="pagos360_test_api_key">MWQzMDUyNDQ0YzU3ZTc1NzJkMTBhZGQxYWEzMGQ4NTdmMzFlMjkwMDMxNTIxYjFiM2M3OGYxNzkzNTIxMjJmMA</field>
         <field name="pagos360_form_url">https://adhoc-sandbox.autogestion.io/adhesion?pKey=Yth7ug6NQtEMh2$</field>
     </record>
+    <record id="pagos360_tests_token" model="payment.token">
+        <field name="payment_details">Debito automático en CBU: BANCO INDUSTRIAL S.A. ****3220001801000020816200</field>
+        <field name="partner_id" eval="ref('base.partner_demo_portal')"/>
+        <field name="provider_id" eval="ref('payment_pagos360.payment_provider_pagos360')"/>
+        <field name="payment_method_id" eval="ref('payment.payment_method_card')"/>
+        <field name="provider_ref">6815</field>
+        <field name="pagos360_adhesion_type">adhesion</field>
+        <field name="pagos360_external_reference">100000</field>
+        <field name="pagos360_bank">BANCO INDUSTRIAL S.A.</field>
+        <field name="pagos360_cbu_number">3220001801000020816200</field>
+    </record>
 </odoo>

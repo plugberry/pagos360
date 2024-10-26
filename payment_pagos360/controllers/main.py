@@ -1,5 +1,6 @@
 import logging
 import pprint
+import werkzeug
 
 from odoo import http
 from odoo.addons.payment import utils as payment_utils

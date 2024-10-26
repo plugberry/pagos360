@@ -207,17 +207,23 @@ class PaymentTransaction(models.Model):
 
         adhesion_data = self.provider_id._pagos360_make_request(endpoint, data=None, method='GET')
         if adhesion_data:
+            if notification_data['entity_name'] == 'card_adhesion':
+                payment_details = "Debito automático en Tarjeta: {} **** - {}".format(adhesion_data['card'], adhesion_data['last_four_digits'])
+            elif notification_data['entity_name'] == 'adhesion':
+                payment_details = "Debito automático en CBU: {} ****{}".format(adhesion_data.get('bank'), adhesion_data['cbu_number'])
+
             token_vals = {
                 'provider_id': self.provider_id.id,
                 'partner_id': self.partner_id.id,
                 'provider_ref': adhesion_id,
+                'payment_details': payment_details,
                 'payment_method_id': self.payment_method_id.id,
                 'pagos360_adhesion_type': notification_data['entity_name'],
                 'pagos360_external_reference': adhesion_data['external_reference'],
-                'pagos360_card': adhesion_data['card'] if notification_data['entity_name'] == 'card_adhesion' else None,
-                'pagos360_card_number': adhesion_data['last_four_digits'] if notification_data['entity_name'] == 'card_adhesion' else None,
-                'pagos360_cbu_number': adhesion_data['cbu_number'] if notification_data['entity_name'] == 'adhesion' else None,
-                'pagos360_bank': adhesion_data['bank'] if notification_data['entity_name'] == 'adhesion' else None,
+                'pagos360_card': adhesion_data.get('card'),
+                'pagos360_card_number': adhesion_data.get('last_four_digits'),
+                'pagos360_cbu_number': adhesion_data.get('cbu_number'),
+                'pagos360_bank': adhesion_data.get('bank'),
             }
             token = self.env['payment.token'].create(token_vals)
             self.write({
