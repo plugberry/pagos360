@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
+<odoo noupdate="1">
     <record id="payment_method_pagofacil" model="payment.method">
         <field name="sequence">10</field>
         <field name="name">PagoFacil</field>
         <field name="code">pagofacil</field>
-        <field name="active">True</field>
+        <field name="active">False</field>
         <field name="image" type="base64" file="payment_pagos360/static/img/pagofacil.png"/>
     </record>
 
@@ -12,7 +12,7 @@
         <field name="sequence">20</field>
         <field name="name">RapiPago</field>
         <field name="code">rapipago</field>
-        <field name="active">True</field>
+        <field name="active">False</field>
         <field name="image" type="base64" file="payment_pagos360/static/img/rapipago.png"/>
     </record>
 
