@@ -5,6 +5,7 @@ from werkzeug import urls
 
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.tools.safe_eval import safe_eval
 
 from ..controllers.main import Pagos360Controller
 from .. import const
@@ -26,6 +27,25 @@ class PaymentProvider(models.Model):
     validity_days = fields.Integer(default=15)
     second_validity_days = fields.Integer(default=30)
     second_due_fees = fields.Float(string="Surcharge", default=10)
+
+    pagos360_excluded_channels = fields.Text(help="['credit_card', 'credit_card_agro', 'debit_card', 'banelco_pmc', 'link_pagos', 'DEBIN', 'wire_transfer', 'non_banking', 'QR',]")
+    pagos360_excluded_installments = fields.Text(help="[2,3,4,5]")
+    pagos360_excluded_card_brands = fields.Text()
+
+    @api.constrains('pagos360_excluded_channels')
+    def _validate_pagos360_excluded_channels(self):
+        valid_values = ['credit_card', 'credit_card_agro', 'debit_card', 'banelco_pmc', 'link_pagos', 'DEBIN', 'wire_transfer', 'non_banking', 'QR',]
+        for rec in self.filtered('pagos360_excluded_channels'):
+            vals = safe_eval(rec.pagos360_excluded_channels)
+            if not isinstance(vals, list) or any([x not in valid_values for x in vals]):
+                raise ValidationError(f"Los canales de pagos solo pueden ser {valid_values}")
+
+    @api.constrains('pagos360_excluded_installments')
+    def _validate_pagos360_excluded_installments(self):
+        for rec in self.filtered('pagos360_excluded_installments'):
+            vals = safe_eval(rec.pagos360_excluded_installments)
+            if not isinstance(vals, list) or any([not isinstance(x, int) for x in vals]):
+                raise ValidationError("las cuotas solo pueden ser numeros")
 
     def _pagos360_get_api_url(self):
         self.ensure_one()

@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import _, models, fields
 from odoo.exceptions import ValidationError, UserError
 from odoo.addons.payment import utils as payment_utils
+from odoo.tools.safe_eval import safe_eval
 
 from ..controllers.main import Pagos360Controller
 
@@ -63,7 +64,7 @@ class PaymentTransaction(models.Model):
         first_due_date, first_total = self.get_first_due_values()
         # second_due_date, second_total = self.get_second_due_values()
 
-        return {
+        res = {
             'payment_request': {
                 'description': self.reference,
                 'external_reference': self.reference,   # No requerido
@@ -78,6 +79,13 @@ class PaymentTransaction(models.Model):
                 'back_url_rejected': redirect_url,      # No requerido
             }
         }
+        if self.provider_id.pagos360_excluded_channels:
+            res['payment_request'].update({'excluded_channels': safe_eval(self.provider_id.pagos360_excluded_channels)})
+        if self.provider_id.pagos360_excluded_installments:
+            res['payment_request'].update({'excluded_installments': safe_eval(self.provider_id.pagos360_excluded_installments)})
+        if self.provider_id.pagos360_excluded_card_brands:
+            res['payment_request'].update({'excluded_card_brands': safe_eval(self.provider_id.pagos360_excluded_card_brands)})
+        return res
 
     def get_first_due_values(self):
         first_due_date = fields.Datetime.now() + timedelta(days=self.provider_id.validity_days)
