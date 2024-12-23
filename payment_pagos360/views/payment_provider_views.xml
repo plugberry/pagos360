@@ -28,6 +28,9 @@
                 <page string="Fees and Due dates" name="fees_and_due_dates" invisible="code != 'pagos360'">
                     <group name="fees_and_due_dates">
                         <field name="validity_days"/>
+                        <field name="pagos360_excluded_channels" />
+                        <field name="pagos360_excluded_installments"/>
+                        <field name="pagos360_excluded_card_brands"/>
                         <!-- <field name="second_validity_days"/>
                         <label for="second_due_fees"/>
                         <div>
