@@ -40,7 +40,7 @@ class PaymentTransaction(models.Model):
         _logger.info("Sending '/payment-request' request for link creation:\n%s", pprint.pformat(payload))
 
         payment_data = self.provider_id._pagos360_make_request('/payment-request', data=payload)
-        if self.payment_method_code == 'card':
+        if self.payment_method_code == 'pagos360':
             api_url = payment_data['checkout_url']
         elif self.payment_method_code == 'pagofacil':
             access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
