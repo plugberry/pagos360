@@ -1,6 +1,12 @@
 {
     'name': 'Payment Provider: Pagos 360',
+<<<<<<< HEAD
     'version': "18.0.1.0.0",
+||||||| parent of c08cc3e (temp)
+    'version': "17.0.2.0.0",
+=======
+    'version': "17.0.3.0.0",
+>>>>>>> c08cc3e (temp)
     'category': 'Accounting/Payment Providers',
     'sequence': 350,
     'depends': ['account_payment'],
