@@ -1,6 +1,6 @@
 {
     'name': 'Payment Provider: Pagos 360',
-    'version': "17.0.2.0.0",
+    'version': "17.0.3.0.0",
     'category': 'Accounting/Payment Providers',
     'sequence': 350,
     'depends': ['account_payment'],
@@ -8,6 +8,7 @@
         'views/payment_provider_views.xml',
         'views/payment_pagos360_template.xml',
         'views/payment_transaction_views.xml',
+        'data/payment_method_data.xml',
         'data/payment_provider_data.xml',
     ],
     'demo': [

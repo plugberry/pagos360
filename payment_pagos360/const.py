@@ -3,7 +3,7 @@ API_TEST_URL = "https://api.sandbox.pagos360.com"
 
 DEFAULT_PAYMENT_METHODS_CODES = [
     # Primary payment methods.
-    'card',
+    'pagos360',
     # Brand payment methods.
     'visa',
     'mastercard',
