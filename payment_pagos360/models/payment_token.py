@@ -26,14 +26,15 @@ class PaymentToken(models.Model):
                 display_name = "Debito automático en CBU: {} ****{}".format(self.pagos360_bank, self.pagos360_cbu_number[-5:])
             return display_name
 
-    def write(self, values):
-        res = super().write(values)
-        if 'active' in values and values['active'] == False and not self.env.context.get('is_notification'):
-            for rec in self.filtered(lambda x: x.provider_code == 'pagos360'):
-                    endpoint = 'adhesion' if rec.pagos360_adhesion_type == 'adhesion' else 'card-adhesion'
-                    id = rec.provider_ref
-                    try:
-                        rec.provider_id._pagos360_make_request(f'/{endpoint}/{id}/cancel', method='PUT')
-                    except RequestException:
-                        _logger.exception("Unable to delete token in PAGOS360")
+    def _handle_archiving(self):
+        res = super()._handle_archiving()
+        if self.env.context.get('is_notification') or self.env.context.get('skip_token_archiving'):
+            return res
+        for rec in self.filtered(lambda x: x.provider_code == 'pagos360'):
+            endpoint = 'adhesion' if rec.pagos360_adhesion_type == 'adhesion' else 'card-adhesion'
+            id = rec.provider_ref
+            try:
+                rec.provider_id._pagos360_make_request(f'/{endpoint}/{id}/cancel', method='PUT')
+            except RequestException:
+                _logger.exception("Unable to delete token in PAGOS360")
         return res

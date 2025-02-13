@@ -112,6 +112,10 @@ class PaymentProvider(models.Model):
                     else:
                         self._pagos360_make_request('/webhook/%s' % webhook_id, method='DELETE')
         return False
+
+    def _handle_state_change(self):
+        super(PaymentProvider, self.with_context(skip_token_archiving=True))._handle_state_change()
+
     def handled_event_types(self):
         # Se puede heredar en otros modulos para agregar nuevos webhooks
         return ["adhesion.canceled","adhesion.signed","card_adhesion.canceled","card_adhesion.signed","card_debit_request.canceled",
