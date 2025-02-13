@@ -148,7 +148,7 @@ class PaymentTransaction(models.Model):
         payment_status = notification_data.get('type')
 
         try:
-            if payment_status in ['pending', 'in_process', 'pending_to_sign', 'transfer_created', 'link_pagos_created', 'banelco_pmc_created']:
+            if payment_status in ['pending', 'in_process', 'pending_to_sign', 'transfer_created', 'link_pagos_created', 'banelco_pmc_created', 'debin_created']:
                 if self.state != 'pending':
                     self._set_pending()
             elif payment_status == 'signed' and self.operation == 'validation':
