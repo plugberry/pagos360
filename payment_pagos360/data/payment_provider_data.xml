@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
-
     <record id="payment_provider_pagos360" model="payment.provider">
         <field name="name">Credit &amp; Debit Card (powered by Pagos360)</field>
         <field name="image_128" type="base64" file="payment_pagos360/static/description/icon.jpeg"/>
@@ -19,5 +18,4 @@
                    ref('payment_pagos360.payment_method_rapipago'),
                ])]"/>
     </record>
-
 </odoo>
