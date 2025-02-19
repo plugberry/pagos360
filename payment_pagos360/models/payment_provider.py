@@ -164,3 +164,15 @@ class PaymentProvider(models.Model):
         if self.code != 'pagos360':
             return default_codes
         return const.DEFAULT_PAYMENT_METHODS_CODES
+
+    @api.onchange('state')
+    def _onchange_state_warn_before_disabling_tokens(self):
+        if self.code == 'pagos360' and self._origin.state in ('test', 'enabled') and self._origin.state != self.state:
+            related_tokens = self.env['payment.token'].search(
+                [('provider_id', '=', self._origin.id)]
+            )
+            if related_tokens:
+                raise ValidationError(_(
+                    """You must archive all tokens related to this provider before disabling it. This action also disables tokens in PAGOS360."""
+                ))
+        return super()._onchange_state_warn_before_disabling_tokens()
