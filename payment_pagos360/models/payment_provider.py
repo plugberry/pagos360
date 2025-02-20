@@ -165,3 +165,15 @@ class PaymentProvider(models.Model):
         if self.code != 'pagos360':
             return default_codes
         return const.DEFAULT_PAYMENT_METHODS_CODES
+
+    def write(self, values):
+        providers_pagos360 = self.filtered(lambda p: p.code == 'pagos360')
+        if 'state' in values and providers_pagos360:
+            related_tokens = self.env['payment.token'].search(
+                [('provider_id', 'in', providers_pagos360._ids)]
+            )
+            if related_tokens and not (len(related_tokens) == 1 and related_tokens == self.env.ref("payment_pagos360.pagos360_tests_token", raise_if_not_found=False)):
+                raise ValidationError(_(
+                    """You have active tokens in PAGOS360. You must archive them before. IMPORTANT Be careful: This action also disables tokens in PAGOS360."""
+                ))
+        return super().write(values)
