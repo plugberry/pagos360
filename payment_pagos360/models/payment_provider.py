@@ -140,3 +140,14 @@ class PaymentProvider(models.Model):
             'support_refund': 'full_only',
             'support_tokenization': True,
         })
+
+    def _handle_state_change(self):
+        for provider in self.filtered(lambda p: p.code == 'pagos360'):
+            related_tokens = self.env['payment.token'].search(
+                [('provider_id', '=', provider.id)]
+            )
+            if related_tokens:
+                raise ValidationError(_(
+                    """You have active tokens for %s. You must archive them before. IMPORTANT Be careful: This action also disables tokens in PAGOS360.""" % provider.name
+                ))
+        return super()._handle_state_change()
