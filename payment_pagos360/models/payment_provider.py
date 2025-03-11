@@ -165,3 +165,31 @@ class PaymentProvider(models.Model):
         if self.code != 'pagos360':
             return default_codes
         return const.DEFAULT_PAYMENT_METHODS_CODES
+<<<<<<< HEAD
+||||||| parent of cb5bda8 (temp)
+
+    def write(self, values):
+        providers_pagos360 = self.filtered(lambda p: p.code == 'pagos360')
+        if 'state' in values and providers_pagos360:
+            related_tokens = self.env['payment.token'].search(
+                [('provider_id', '=', providers_pagos360._id)]
+            )
+            if related_tokens:
+                raise ValidationError(_(
+                    """You have active tokens in PAGOS360. You must archive them before. IMPORTANT Be careful: This action also disables tokens in PAGOS360."""
+                ))
+        return super().write(values)
+=======
+
+    def write(self, values):
+        providers_pagos360 = self.filtered(lambda p: p.code == 'pagos360')
+        if 'state' in values and providers_pagos360:
+            related_tokens = self.env['payment.token'].search(
+                [('provider_id', 'in', providers_pagos360.ids)]
+            )
+            if related_tokens:
+                raise ValidationError(_(
+                    """You have active tokens in PAGOS360. You must archive them before. IMPORTANT Be careful: This action also disables tokens in PAGOS360."""
+                ))
+        return super().write(values)
+>>>>>>> cb5bda8 (temp)
