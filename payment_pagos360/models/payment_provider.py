@@ -169,7 +169,7 @@ class PaymentProvider(models.Model):
         providers_pagos360 = self.filtered(lambda p: p.code == 'pagos360')
         if 'state' in values and providers_pagos360:
             related_tokens = self.env['payment.token'].search(
-                [('provider_id', '=', providers_pagos360._id)]
+                [('provider_id', 'in', providers_pagos360.ids)]
             )
             if related_tokens:
                 raise ValidationError(_(
