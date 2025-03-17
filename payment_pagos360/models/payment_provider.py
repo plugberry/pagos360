@@ -141,7 +141,7 @@ class PaymentProvider(models.Model):
 
     def _get_event_types(self):
         event_types = list()
-        types = self._pagos360_make_request('/event-type', method='GET')
+        types = self._pagos360_make_request('/event-type?limit=50', method='GET')
         handled_event_types = self.handled_event_types()
         if types and types.get('data'):
             data = types.get('data')
