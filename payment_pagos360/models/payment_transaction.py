@@ -343,7 +343,7 @@ class PaymentTransaction(models.Model):
         for data in request_info['data']:
             if data['external_reference'] == self.reference:
                 return data
-            return []
+        return []
 
     def pagos360_readable_result(self,result_msg):
         txt = []
@@ -359,4 +359,7 @@ class PaymentTransaction(models.Model):
         raise UserError("%s" % ' \n'.join(txt))
 
     def simulate_webhook(self, entity_name, data):
-        return {'entity_name': entity_name, 'entity_id': data['id'], 'type': data['state'],'payload': data}
+        if not data:
+            _logger.warning("No data recieved")
+            return
+        return {'entity_name': entity_name, 'entity_id': data['id'], 'type': data['state'], 'payload': data}
