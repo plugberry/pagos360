@@ -44,6 +44,10 @@ class Pagos360Controller(portal.CustomerPortal):
 
             ref_sanitarzed = tx_sudo.reference.replace('%', '%25')
             values = tx_sudo._get_operation_info_from_data(tx_sudo.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % ref_sanitarzed, method='GET' ))
+            tx_sudo.write({
+                'provider_reference': values.get('id'),
+                'state': values.get('state', 'draft'),
+            })
             return request.redirect(values['pdf_url'], local=False)
         else:
             # Display the portal homepage to the user
@@ -72,6 +76,10 @@ class Pagos360Controller(portal.CustomerPortal):
 
             ref_sanitarzed = tx_sudo.reference.replace('%', '%25')
             values = tx_sudo._get_operation_info_from_data(tx_sudo.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % ref_sanitarzed, method='GET' ))
+            tx_sudo.write({
+                'provider_reference': values.get('id'),
+                'state': values.get('state', 'draft'),
+            })
             return request.render("payment_pagos360.rapipago_barcode_print", values)
         else:
             # Display the portal homepage to the user
