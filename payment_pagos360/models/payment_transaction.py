@@ -156,8 +156,12 @@ class PaymentTransaction(models.Model):
                 if not self.token_id:
                     self._pagos360_tokenize_from_feedback_data(notification_data)
             elif payment_status == 'paid':
-                self._set_done()
-            elif payment_status in ['expired', 'canceled', 'rejected', 'transfer_canceled']:
+                self._set_done(extra_allowed_states=('cancel',))
+            elif payment_status == 'reverted':
+                self.payment_id.action_draft()
+                self.payment_id.action_cancel()
+                self._set_canceled("PAGOS360: " + _("Canceled payment with status: %s", payment_status))
+            elif payment_status in ['expired', 'canceled', 'rejected','transfer_canceled']:
                 # Solo cambio el estado en los casos que puedo hacerlo.
                 # las autorizaciones se pueden cancelar cuando estan ya en done
                 if self.state in ['draft', 'pending', 'authorized']:
