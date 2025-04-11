@@ -155,7 +155,7 @@ class PaymentTransaction(models.Model):
                 if not self.token_id:
                     self._pagos360_tokenize_from_feedback_data(notification_data)
             elif payment_status == 'paid':
-                self._set_done()
+                self._set_done(extra_allowed_states=('cancel',))
             elif payment_status == 'reverted':
                 self.payment_id.action_draft()
                 self.payment_id.action_cancel()
