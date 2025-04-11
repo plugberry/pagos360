@@ -45,7 +45,7 @@ class PaymentProvider(models.Model):
         for rec in self.filtered('pagos360_excluded_installments'):
             vals = safe_eval(rec.pagos360_excluded_installments)
             if not isinstance(vals, list) or any([not isinstance(x, int) for x in vals]):
-                raise ValidationError("las cuotas solo pueden ser numeros")
+                raise ValidationError("Las cuotas solo pueden ser numeros")
 
     def _pagos360_get_api_url(self):
         self.ensure_one()
