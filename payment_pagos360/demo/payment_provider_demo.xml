@@ -8,7 +8,7 @@
         <field name="payment_details">Debito automático en CBU: BANCO INDUSTRIAL S.A. ****3220001801000020816200</field>
         <field name="partner_id" eval="ref('base.partner_demo_portal')"/>
         <field name="provider_id" eval="ref('payment_pagos360.payment_provider_pagos360')"/>
-        <field name="payment_method_id" eval="ref('payment.payment_method_card')"/>
+        <field name="payment_method_id" eval="ref('payment_pagos360.payment_method_pagos360')"/>
         <field name="provider_ref">6815</field>
         <field name="pagos360_adhesion_type">adhesion</field>
         <field name="pagos360_external_reference">100000</field>
