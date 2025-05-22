@@ -1,0 +1,35 @@
+<odoo>
+    <template id="report_invoice_document" inherit_id="account.report_invoice_document" priority="100">
+        <xpath expr="//div[@id='payment_term']/../../.." position="after">
+            <div t-if="o.pagos360_barcode or o.pagos360_barcode_image" class="barcode-footer-wrapper text-center" style="page-break-inside: avoid;">
+                <hr class="my-5"/> <!-- Línea divisoria -->
+                <p> Medio de pago electronico</p>
+
+                <div class="mb-3">
+                    <t t-if="o.pagos360_barcode_image">
+                        <p>
+                            <img t-att-src="'data:image/svg+xml;base64,%s' % o.pagos360_barcode_image.decode('utf-8')" style="max-width:100%;"/>
+                        </p>
+                    </t>
+                    <p>
+                        <span class="fw-bold">
+                            <t t-esc="o.pagos360_barcode"/>
+                        </span>
+                    </p>
+                </div>
+            </div>
+            <div t-if="o.pagos360_rp_barcode or o.pagos360_rp_barcode_url" class="mb-3">
+                <p>
+                    Rapipago: <span class="fw-bold">
+                        <t t-esc="o.pagos360_rp_barcode"/>
+                    </span>
+                </p>
+                <t t-if="o.pagos360_barcode_url">
+                    <p>
+                        <img t-att-src="o.pagos360_barcode_url" style="max-width:100%;"/>
+                    </p>
+                </t>
+            </div>
+        </xpath>
+    </template>
+</odoo>
