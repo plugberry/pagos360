@@ -379,3 +379,4 @@ class PaymentTransaction(models.Model):
             _logger.warning("No data recieved")
             return
         return {'entity_name': entity_name, 'entity_id': data['id'], 'type': data['state'], 'payload': data}
+
