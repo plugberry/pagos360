@@ -28,13 +28,11 @@ class PaymentTransaction(models.Model):
             """
             external_reference = notification_data.get('payload', {}).get('external_reference')
             payment_status = notification_data.get('type')
-
             if provider_code == 'pagos360' and external_reference and payment_status == 'paid' and all(provider_invoice:=self._pagos360_get_provider_invoice_from_reference(external_reference)):
                 provider, invoice = provider_invoice
                 tx = self.search([('provider_id', '=', provider.id), ('reference', '=', external_reference)], limit=1)
                 if not tx:
-                    payment_method_id = self.env['payment.method']._get_compatible_payment_methods(provider.ids, invoice.partner_id.id)
-
+                    payment_method_id = self.env['payment.method']._get_compatible_payment_methods(provider.ids, invoice.partner_id.id).filtered(lambda x: x.name=='PagoFacil')
                     tx_vals = {
                         "reference": external_reference,
                         "provider_reference": notification_data.get('entity_id'),
