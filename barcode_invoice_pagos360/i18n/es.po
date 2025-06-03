@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 17.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-30 21:55+0000\n"
+"POT-Creation-Date: 2025-06-03 02:36+0000\n"
 "PO-Revision-Date: 2025-05-30 21:55+0000\n"
 "Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025\n"
 "Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
@@ -21,22 +21,8 @@ msgstr ""
 
 #. module: barcode_invoice_pagos360
 #: model:ir.model,name:barcode_invoice_pagos360.model_account_move
-msgid "Account Move with Pagos360 Integration"
+msgid "Journal Entry"
 msgstr "Asiento contable"
-
-#. module: barcode_invoice_pagos360
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_bank_statement_line__pagos360_barcode
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_move__pagos360_barcode
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_payment__pagos360_barcode
-msgid "Código de Barras"
-msgstr ""
-
-#. module: barcode_invoice_pagos360
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_bank_statement_line__pagos360_rp_barcode
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_move__pagos360_rp_barcode
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_payment__pagos360_rp_barcode
-msgid "Código de Barras Rapipago"
-msgstr ""
 
 #. module: barcode_invoice_pagos360
 #: model_terms:ir.ui.view,arch_db:barcode_invoice_pagos360.report_invoice_document
@@ -44,10 +30,31 @@ msgid "Medio de pago electronico"
 msgstr ""
 
 #. module: barcode_invoice_pagos360
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_bank_statement_line__pagos360_barcode
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_move__pagos360_barcode
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_payment__pagos360_barcode
+msgid "Pagos360 Barcode"
+msgstr ""
+
+#. module: barcode_invoice_pagos360
 #: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_bank_statement_line__pagos360_barcode_image
 #: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_move__pagos360_barcode_image
 #: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_payment__pagos360_barcode_image
-msgid "Pagos 360 Barcode"
+msgid "Pagos360 Barcode Image"
+msgstr ""
+
+#. module: barcode_invoice_pagos360
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_bank_statement_line__pagos360_rp_barcode
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_move__pagos360_rp_barcode
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_payment__pagos360_rp_barcode
+msgid "Pagos360 Rp Barcode"
+msgstr ""
+
+#. module: barcode_invoice_pagos360
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_bank_statement_line__pagos360_rp_barcode_url
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_move__pagos360_rp_barcode_url
+#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_payment__pagos360_rp_barcode_url
+msgid "Pagos360 Rp Barcode Url"
 msgstr ""
 
 #. module: barcode_invoice_pagos360
@@ -58,11 +65,4 @@ msgstr "Transacción de pago"
 #. module: barcode_invoice_pagos360
 #: model_terms:ir.ui.view,arch_db:barcode_invoice_pagos360.report_invoice_document
 msgid "Rapipago:"
-msgstr ""
-
-#. module: barcode_invoice_pagos360
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_bank_statement_line__pagos360_rp_barcode_url
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_move__pagos360_rp_barcode_url
-#: model:ir.model.fields,field_description:barcode_invoice_pagos360.field_account_payment__pagos360_rp_barcode_url
-msgid "URL Código de Barras Rapipago"
 msgstr ""
