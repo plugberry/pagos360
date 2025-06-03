@@ -14,7 +14,7 @@ class AccountMove(models.Model):
     pagos360_barcode = fields.Char(copy=False)
     pagos360_barcode_image = fields.Binary(copy=False, attachment=True)
     pagos360_rp_barcode = fields.Char(copy=False)
-    pagos360_rp_barcode_url = fields.Char(copy=False)
+    pagos360_rp_barcode_image = fields.Char(copy=False)
 
     def _payment_barcode_request_pagos360(self):
         """Request barcode from Pagos360 for the given invoices.
@@ -47,8 +47,8 @@ class AccountMove(models.Model):
                 invoice.pagos360_barcode_image = base64.b64encode(svg)
             if payment_data.get("rapipago_barcode"):
                 invoice.pagos360_rp_barcode = payment_data.get("rapipago_barcode")
-                invoice.pagos360_rp_barcode_url = payment_data.get("rapipago_barcode_url")
-
+                rp_svg = requests.get(payment_data["rapipago_barcode_url"]).content
+                invoice.pagos360_rp_barcode_image = base64.b64encode(rp_svg)
 
     def action_post(self):
         res = super().action_post()
