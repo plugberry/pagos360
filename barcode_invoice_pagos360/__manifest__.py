@@ -1,6 +1,6 @@
 {
     'name': 'Barcode Invoice Pagos360',
-    'version': '17.0.1.1.1',
+    'version': '17.0.1.2.0',
     'summary': 'Add a pagos360 payment barcode into the invoice',
     'description': '',
     'category': '',
