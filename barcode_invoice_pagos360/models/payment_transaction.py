@@ -32,7 +32,7 @@ class PaymentTransaction(models.Model):
                 provider, invoice = provider_invoice
                 tx = self.search([('provider_id', '=', provider.id), ('reference', '=', external_reference)], limit=1)
                 if not tx:
-                    payment_method_id = self.env['payment.method']._get_compatible_payment_methods(provider.ids, invoice.partner_id.id).filtered(lambda x: x.name=='PagoFacil')
+                    payment_method_id = self.env['payment.method']._get_compatible_payment_methods(provider.ids, invoice.partner_id.id).filtered(lambda x: x.code=='pagofacil')
                     tx_vals = {
                         "reference": external_reference,
                         "provider_reference": notification_data.get('entity_id'),
