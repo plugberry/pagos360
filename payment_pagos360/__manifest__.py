@@ -3,6 +3,7 @@
     'version': "18.0.1.0.0",
     'category': 'Accounting/Payment Providers',
     'sequence': 350,
+    "author": "Plugberry",
     'depends': ['account_payment'],
     'data': [
         'views/payment_provider_views.xml',
