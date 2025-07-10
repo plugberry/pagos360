@@ -3,14 +3,14 @@ API_TEST_URL = "https://api.sandbox.pagos360.com"
 
 DEFAULT_PAYMENT_METHODS_CODES = [
     # Primary payment methods.
-    'pagos360',
+    "pagos360",
     # Brand payment methods.
-    'visa',
-    'mastercard',
-    'ceconsud',
-    'naranja',
-    'nativa',
-    'tarjeta_mercadopago',
+    "visa",
+    "mastercard",
+    "ceconsud",
+    "naranja",
+    "nativa",
+    "tarjeta_mercadopago",
 ]
 
 EVENT_TYPES = [
