@@ -1,0 +1,10 @@
+# Do NOT update manually; changes here will be overwritten by Copier
+_commit: 00cee12
+_src_path: https://github.com/ingadhoc/addons-repo-template.git
+description: ''
+is_private: true
+name: pagos360
+odoo_version: 18.0
+pre_commit_ignore: []
+slug: ''
+
