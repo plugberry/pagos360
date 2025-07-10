@@ -253,10 +253,10 @@ class PaymentTransaction(models.Model):
                 self._process_notification_data(self.simulate_webhook('card_adhesion', req))
             if self.token_id.pagos360_adhesion_type == 'adhesion':
                 req = self._pagos360_debit_request()
-            self.env.cr.commit()
+            self.env.cr.commit()  # pylint: disable=invalid-commit
             if req:
                 self._process_notification_data(self.simulate_webhook(self.token_id.pagos360_adhesion_type, req))
-                self.env.cr.commit()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
         return super()._send_payment_request()
 
     def _pagos360_card_debit_request(self):
@@ -336,7 +336,7 @@ class PaymentTransaction(models.Model):
                 data = tx.provider_id._pagos360_make_request('/card-debit-request?id=%s' % tx.provider_reference, method='GET')
                 payload = self.simulate_webhook('card_debit_request', data['data'][0])
                 tx.sudo()._process_notification_data(payload)
-            self.env.cr.commit()
+            self.env.cr.commit()  # pylint: disable=invalid-commit
         return self.pagos360_readable_result(result_msg)
 
     def pagos360_cancel_transactions(self):

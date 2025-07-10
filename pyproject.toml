@@ -56,6 +56,7 @@ score = false
 
 [tool.pylint.odoolint]
 manifest-required-keys = ["license"]
+manifest-required-authors = "Plugberry"
 manifest-deprecated-keys = ["description", "active"]
 license-allowed = [
     "AGPL-3",
