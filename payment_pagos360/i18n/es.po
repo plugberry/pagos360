@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-23 16:14+0000\n"
+"POT-Creation-Date: 2025-07-15 19:00+0000\n"
 "PO-Revision-Date: 2024-12-23 16:14+0000\n"
 "Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024\n"
 "Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
@@ -119,6 +119,11 @@ msgid "PagoFacil"
 msgstr ""
 
 #. module: payment_pagos360
+#: model:payment.method,name:payment_pagos360.payment_method_pagos360
+msgid "Pagos360"
+msgstr ""
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_adhesion_type
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_adhesion_type
 msgid "Pagos360 Adhesion Type"
@@ -142,6 +147,21 @@ msgstr ""
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_cbu_number
 msgid "Pagos360 Cbu Number"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_card_brands
+msgid "Pagos360 Excluded Card Brands"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_channels
+msgid "Pagos360 Excluded Channels"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_installments
+msgid "Pagos360 Excluded Installments"
 msgstr ""
 
 #. module: payment_pagos360
@@ -220,6 +240,14 @@ msgstr ""
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid ""
+"You have active tokens in PAGOS360. You must archive them before. IMPORTANT "
+"Be careful: This action also disables tokens in PAGOS360."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "Your Pagos360 Webhook was already set up."
 msgstr ""
 
@@ -248,6 +276,18 @@ msgstr ""
 #. module: payment_pagos360
 #: model_terms:payment.provider,done_msg:payment_pagos360.payment_provider_pagos360
 msgid "Your payment has been successfully processed."
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_channels
+msgid ""
+"['credit_card', 'credit_card_agro', 'debit_card', 'banelco_pmc', "
+"'link_pagos', 'DEBIN', 'wire_transfer', 'non_banking', 'QR',]"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_installments
+msgid "[2,3,4,5]"
 msgstr ""
 
 #. module: payment_pagos360
