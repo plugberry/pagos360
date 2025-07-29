@@ -356,6 +356,7 @@ class PaymentTransaction(models.Model):
                     "/card-debit-request?id=%s" % tx.provider_reference, method="GET"
                 )
                 payload = self.simulate_webhook("card_debit_request", data["data"][0])
+                result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
             self.env.cr.commit()  # pylint: disable=invalid-commit
         return self.pagos360_readable_result(result_msg)
