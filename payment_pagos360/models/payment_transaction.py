@@ -262,6 +262,12 @@ class PaymentTransaction(models.Model):
 
     def _send_payment_request(self):
         if self.provider_code == "pagos360":
+            if self.state != "draft" or self.provider_reference:
+                # No se puede enviar la solicitud de pago si no esta en borrador o ya tiene referencia
+                _logger.error(
+                    f"pagos360: cant send transaction {self.id}. State: {self.state} - Ref: {self.provider_reference}"
+                )
+                return
             if self.token_id.pagos360_adhesion_type == "card_adhesion":
                 req = self._pagos360_card_debit_request()
                 self._process_notification_data(self.simulate_webhook("card_adhesion", req))
