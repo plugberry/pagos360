@@ -16,6 +16,6 @@
     "data": [
         "views/report_invoice.xml",
     ],
-    "installable": True,
+    'installable': False,
     "application": False,
 }
