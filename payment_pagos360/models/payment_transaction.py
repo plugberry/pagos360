@@ -172,7 +172,9 @@ class PaymentTransaction(models.Model):
             elif payment_status == "reverted":
                 self.payment_id.action_draft()
                 self.payment_id.action_cancel()
-                self._set_canceled("PAGOS360: " + _("Canceled payment with status: %s", payment_status))
+                self._set_canceled(
+                    "PAGOS360: " + _("Canceled payment with status: %s", payment_status), extra_allowed_states=("done",)
+                )
             elif payment_status in ["expired", "canceled", "rejected", "transfer_canceled"]:
                 # Solo cambio el estado en los casos que puedo hacerlo.
                 # las autorizaciones se pueden cancelar cuando estan ya en done
