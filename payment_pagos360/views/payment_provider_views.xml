@@ -14,11 +14,9 @@
             <group name="provider_credentials" position='inside'>
                 <group invisible="code != 'pagos360'">
                     <field name="pagos360_api_key" password="True"
-                           invisible="state != 'enabled'"
-                           required="code == 'pagos360' and state == 'enabled'"/>
+                           invisible="state != 'enabled'"/>
                     <field name="pagos360_test_api_key" password="True"
-                           invisible="state != 'test'"
-                           required="code == 'pagos360' and state == 'test'"/>
+                           invisible="state != 'test'"/>
                 </group>
             </group>
             <field name="allow_tokenization" position="before">
