@@ -4,7 +4,7 @@ import requests
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.tools.safe_eval import safe_eval
-from werkzeug import urls
+from odoo.tools.urls import urljoin
 
 from .. import const
 from ..controllers.main import Pagos360Controller
@@ -71,7 +71,7 @@ class PaymentProvider(models.Model):
 
     def _pagos360_make_request(self, endpoint, data=None, method="POST"):
         self.ensure_one()
-        url = urls.url_join(self._pagos360_get_api_url(), endpoint)
+        url = urljoin(self._pagos360_get_api_url(), endpoint)
 
         headers = {
             "Accept": "application/json",
@@ -96,7 +96,7 @@ class PaymentProvider(models.Model):
     @api.depends("pagos360_api_key", "pagos360_test_api_key")
     def ensure_webhook(self):
         base_url = self.get_base_url().replace("http:", "https:")
-        webhook_url = urls.url_join(base_url, Pagos360Controller._webhook_url)
+        webhook_url = urljoin(base_url, Pagos360Controller._webhook_url)
 
         message = _("Your Pagos360 Webhook was already set up.")
         notification_type = "success"
