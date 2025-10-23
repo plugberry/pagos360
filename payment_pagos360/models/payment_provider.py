@@ -2,9 +2,9 @@ import logging
 
 import requests
 from odoo import _, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tools.safe_eval import safe_eval
-from werkzeug import urls
+from odoo.tools.urls import urljoin
 
 from .. import const
 from ..controllers.main import Pagos360Controller
@@ -16,8 +16,12 @@ class PaymentProvider(models.Model):
     _inherit = "payment.provider"
 
     code = fields.Selection(selection_add=[("pagos360", "PAGOS360")], ondelete={"pagos360": "set default"})
-    pagos360_api_key = fields.Char(string="Api Key (PAGOS360)", groups="base.group_system")
-    pagos360_test_api_key = fields.Char(string="Test Api Key (PAGOS360)", groups="base.group_system")
+    pagos360_api_key = fields.Char(
+        string="Api Key (PAGOS360)", required_if_provider="pagos360", groups="base.group_system"
+    )
+    pagos360_test_api_key = fields.Char(
+        string="Test Api Key (PAGOS360)", required_if_provider="pagos360", groups="base.group_system"
+    )
     pagos360_form_url = fields.Char("Link formulario debito automático")
 
     validity_days = fields.Integer(default=15)
@@ -71,24 +75,25 @@ class PaymentProvider(models.Model):
 
     def _pagos360_make_request(self, endpoint, data=None, method="POST"):
         self.ensure_one()
-        url = urls.url_join(self._pagos360_get_api_url(), endpoint)
+        url = urljoin(self._pagos360_get_api_url(), endpoint)
 
         headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {self._pagos360_get_api_key()}",
             "Content-Type": "application/json",
         }
+        response = None
         try:
             response = requests.request(method, url, json=data, headers=headers, timeout=60)
             response.raise_for_status()
         except requests.exceptions.RequestException:
-            _logger.error(response.text)
+            response_text = response.text if response is not None else "No response"
             _logger.exception("Unable to communicate with Pagos360: %s", url)
             _logger.error("send data data: %s" % str(data))
-            _logger.error("response.text: %s" % response.text)
+            _logger.error("response.text: %s" % response_text)
             raise ValidationError(
                 "Pagos360: {error_title} \n ref: {error_ref}".format(
-                    error_title=_("Could not establish the connection to the API."), error_ref=response.text
+                    error_title=_("Could not establish the connection to the API."), error_ref=response_text
                 )
             )
         return response.json()
@@ -96,7 +101,7 @@ class PaymentProvider(models.Model):
     @api.depends("pagos360_api_key", "pagos360_test_api_key")
     def ensure_webhook(self):
         base_url = self.get_base_url().replace("http:", "https:")
-        webhook_url = urls.url_join(base_url, Pagos360Controller._webhook_url)
+        webhook_url = urljoin(base_url, Pagos360Controller._webhook_url)
 
         message = _("Your Pagos360 Webhook was already set up.")
         notification_type = "success"
@@ -166,23 +171,36 @@ class PaymentProvider(models.Model):
         )
 
     def _get_default_payment_method_codes(self):
-        """Override of `payment` to return the default payment method codes."""
-        default_codes = super()._get_default_payment_method_codes()
+        """Override of `payment` to return the default payment method codes.
+        Note: `self.ensure_one()`
+        :return: The default payment method codes.
+        :rtype: set
+        """
+        self.ensure_one()
         if self.code != "pagos360":
-            return default_codes
+            return super()._get_default_payment_method_codes()
         return const.DEFAULT_PAYMENT_METHODS_CODES
 
     def write(self, values):
+        # Handle provider state changes for pagos360 before calling super
         providers_pagos360 = self.filtered(lambda p: p.code == "pagos360")
         if "state" in values and providers_pagos360:
-            related_tokens = self.env["payment.token"].search([("provider_id", "in", providers_pagos360._ids)])
-            if related_tokens and not (
-                len(related_tokens) == 1
-                and related_tokens == self.env.ref("payment_pagos360.pagos360_tests_token", raise_if_not_found=False)
-            ):
-                raise ValidationError(
-                    _(
-                        """You have active tokens in PAGOS360. You must archive them before. IMPORTANT Be careful: This action also disables tokens in PAGOS360."""
+            # Check if there are related tokens that would be archived
+            state_changed_providers = providers_pagos360.filtered(
+                lambda p: p.state in ("enabled", "test") and values["state"] == "disabled"
+            )
+            if state_changed_providers:
+                related_tokens = self.env["payment.token"].search([("provider_id", "in", state_changed_providers.ids)])
+                # Exclude test tokens from the check
+                test_token = self.env.ref("payment_pagos360.pagos360_tests_token", raise_if_not_found=False)
+                if test_token:
+                    related_tokens = related_tokens - test_token
+
+                if related_tokens:
+                    raise UserError(
+                        _(
+                            "You have active tokens in PAGOS360. You must archive them before. "
+                            "IMPORTANT: This action will also disable tokens in PAGOS360."
+                        )
                     )
-                )
         return super().write(values)

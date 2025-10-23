@@ -3,11 +3,11 @@ import pprint
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.addons.payment import utils as payment_utils
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
-from werkzeug import urls
+from odoo.tools.urls import urljoin
 
 from ..controllers.main import Pagos360Controller
 
@@ -39,6 +39,7 @@ class PaymentTransaction(models.Model):
         _logger.info("Sending '/payment-request' request for link creation:\n%s", pprint.pformat(payload))
 
         payment_data = self.provider_id._pagos360_make_request("/payment-request", data=payload)
+        self.sudo().provider_reference = payment_data.get("id")
         if self.payment_method_code == "pagos360":
             api_url = payment_data["checkout_url"]
         elif self.payment_method_code == "pagofacil":
@@ -59,7 +60,7 @@ class PaymentTransaction(models.Model):
         :rtype: dict
         """
         base_url = self.provider_id.get_base_url()
-        redirect_url = urls.url_join(base_url, Pagos360Controller._return_url)
+        redirect_url = urljoin(base_url, Pagos360Controller._return_url)
 
         first_due_date, first_total = self.get_first_due_values()
         # second_due_date, second_total = self.get_second_due_values()
@@ -101,23 +102,25 @@ class PaymentTransaction(models.Model):
         second_total = self.amount * (1 + self.provider_id.second_due_fees / 100.0)
         return second_due_date, second_total
 
-    def _get_tx_from_notification_data(self, provider_code, notification_data):
-        """Override of payment to find the transaction based on Pagos360 data.
+    @api.model
+    def _search_by_reference(self, provider_code, payment_data):
+        """Override of payment to search the transaction based on Pagos360 data.
 
-        :param str provider_code: The code of the provider that handled the transaction
-        :param dict notification_data: The notification data sent by the provider
-        :return: The transaction if found
+        :param str provider_code: The code of the provider that handled the transaction.
+        :param dict payment_data: The payment data sent by the provider.
+        :return: The transaction, if found.
         :rtype: recordset of `payment.transaction`
-        :raise: ValidationError if the data match no transaction
         """
-        tx = super()._get_tx_from_notification_data(provider_code, notification_data)
-        if provider_code != "pagos360" or len(tx) == 1:
+        tx = super()._search_by_reference(provider_code, payment_data)
+        if provider_code != "pagos360" or tx:
             return tx
-        payload = notification_data.get("payload")
 
-        entity_name = notification_data.get("entity_name")
+        payload = payment_data.get("payload", {})
+        entity_name = payment_data.get("entity_name")
+
         if not entity_name:
-            raise ValidationError("PAGOS360: " + _("Received data with missing entity name."))
+            _logger.warning("PAGOS360: Received data with missing entity name.")
+            return self
 
         if entity_name in ["debit_request", "card_debit_request"]:
             domain = [("provider_reference", "=", payload.get("id")), ("provider_code", "=", "pagos360")]
@@ -127,29 +130,65 @@ class PaymentTransaction(models.Model):
             domain.append(["pagos360_adhesion_type", "=", False])
         tx = self.search(domain)
         if not tx:
-            raise ValidationError(
-                "Pagos360: " + _("No transaction found matching reference %s.", notification_data.get("ref"))
-            )
+            _logger.warning("Pagos360: No transaction found matching reference %s.", payment_data.get("ref"))
         return tx
 
-    def _process_notification_data(self, notification_data):
-        """Override of payment to process the transaction based on Pagos360 data.
+    @api.model
+    def _extract_reference(self, provider_code, payment_data):
+        """Override of payment to extract the transaction reference from Pagos360 data.
+
+        :param str provider_code: The code of the provider handling the transaction.
+        :param dict payment_data: The payment data sent by the provider.
+        :return: The transaction reference.
+        :rtype: str
+        """
+        if provider_code != "pagos360":
+            return super()._extract_reference(provider_code, payment_data)
+
+        payload = payment_data.get("payload", {})
+        entity_name = payment_data.get("entity_name")
+
+        if entity_name in ["debit_request", "card_debit_request"]:
+            # For debit requests, we search by provider_reference, not reference
+            return None  # Let _search_by_reference handle this case
+        else:
+            return payload.get("external_reference")
+
+    def _extract_amount_data(self, payment_data):
+        """Override of payment to extract the amount and currency from the payment data."""
+        if self.provider_code != "pagos360":
+            return super()._extract_amount_data(payment_data)
+
+        request_result = payment_data.get("payload", {}).get("request_result", [])
+        amount = 0.0
+        for result in request_result:
+            amount += result.get("amount", 0.0)
+
+        return {
+            "amount": amount,
+            "currency_code": self.currency_id.name,
+        }
+
+    def _apply_updates(self, payment_data):
+        """Override of payment to update the transaction based on Pagos360 data.
 
         Note: self.ensure_one()
 
-        :param dict notification_data: The notification data sent by the provider
+        :param dict payment_data: The payment data sent by the provider.
         :return: None
         """
-        super()._process_notification_data(notification_data)
+        super()._apply_updates(payment_data)
         if self.provider_code != "pagos360":
             return
-        entity_name = notification_data.get("entity_name")
-        entity_id = notification_data.get("entity_id")
+
+        entity_name = payment_data.get("entity_name")
+        entity_id = payment_data.get("entity_id")
         if not entity_id:
-            raise ValidationError("PAGOS360: " + _("Received data with missing entity id."))
+            _logger.warning("PAGOS360: Received data with missing entity id.")
+            return
 
         self.provider_reference = entity_id
-        payment_status = notification_data.get("type")
+        payment_status = payment_data.get("type")
 
         try:
             if payment_status in [
@@ -165,8 +204,8 @@ class PaymentTransaction(models.Model):
                     self._set_pending()
             elif payment_status == "signed" and self.operation == "validation":
                 self._set_done()
-                if not self.token_id:
-                    self._pagos360_tokenize_from_feedback_data(notification_data)
+                if not self.token_id and self.tokenize:
+                    self._tokenize(payment_data)
             elif payment_status == "paid":
                 self._set_done(extra_allowed_states=("cancel",))
             elif payment_status == "reverted":
@@ -197,7 +236,7 @@ class PaymentTransaction(models.Model):
                     Información:\n
                     - Transacción PAGOS360: {transaction}<br/>
                     - Código de Error: {error_code}<br/>
-                    - Mensaje de Error": {error_msg}<br/>
+                    - Mensaje de Error: {error_msg}<br/>
                 """.format(transaction=self.provider_reference, error_code=payment_status, error_msg="")
                 self._set_error("PAGOS360: " + message)
         except Exception as e:
@@ -208,59 +247,61 @@ class PaymentTransaction(models.Model):
                 Ante algún inconveniente con la misma por favor comunicarse a través de los siguientes canales:
                 Correo Electrónico: soporte@pagos360.com.ar\n
                 WhatsApp: +54 3512548747\n
-                Información:\n
                 - Transacción id: {self.id}<br/>
                 - Mensaje de Error": {e}<br/>
             """
             self._set_error("PAGOS360: " + message)
 
-    def _pagos360_tokenize_from_feedback_data(self, notification_data):
-        """Create a new token based on the feedback data.
+    def _extract_token_values(self, payment_data):
+        """Override of payment to extract token values from Pagos360 data.
 
         Note: self.ensure_one()
 
-        :param dict data: The feedback data sent by the provider
-        :return: None
+        :param dict payment_data: The payment data sent by the provider.
+        :return: The token values to create a new token.
+        :rtype: dict
         """
         self.ensure_one()
-        adhesion_id = notification_data["entity_id"]
-        if notification_data["entity_name"] == "card_adhesion":
+        if self.provider_code != "pagos360":
+            return super()._extract_token_values(payment_data)
+
+        adhesion_id = payment_data.get("entity_id")
+        entity_name = payment_data.get("entity_name")
+
+        if not adhesion_id or not entity_name:
+            _logger.warning("PAGOS360: Missing entity_id or entity_name in payment data")
+            return {}
+
+        if entity_name == "card_adhesion":
             endpoint = f"/card-adhesion/{adhesion_id}"
         else:
             endpoint = f"/adhesion/{adhesion_id}"
 
         adhesion_data = self.provider_id._pagos360_make_request(endpoint, data=None, method="GET")
-        if adhesion_data:
-            if notification_data["entity_name"] == "card_adhesion":
-                payment_details = "Debito automático en Tarjeta: {} **** - {}".format(
-                    adhesion_data["card"], adhesion_data["last_four_digits"]
-                )
-            elif notification_data["entity_name"] == "adhesion":
-                payment_details = "Debito automático en CBU: {} ****{}".format(
-                    adhesion_data.get("bank"), adhesion_data["cbu_number"]
-                )
+        if not adhesion_data:
+            return {}
 
-            token_vals = {
-                "provider_id": self.provider_id.id,
-                "partner_id": self.partner_id.id,
-                "provider_ref": adhesion_id,
-                "payment_details": payment_details,
-                "payment_method_id": self.payment_method_id.id,
-                "pagos360_adhesion_type": notification_data["entity_name"],
-                "pagos360_external_reference": adhesion_data["external_reference"],
-                "pagos360_card": adhesion_data.get("card"),
-                "pagos360_card_number": adhesion_data.get("last_four_digits"),
-                "pagos360_cbu_number": adhesion_data.get("cbu_number"),
-                "pagos360_bank": adhesion_data.get("bank"),
-            }
-            token = self.env["payment.token"].create(token_vals)
-            self.write(
-                {
-                    "token_id": token.id,
-                    "tokenize": False,
-                }
+        if entity_name == "card_adhesion":
+            payment_details = "Debito automático en Tarjeta: {} **** - {}".format(
+                adhesion_data.get("card"), adhesion_data.get("last_four_digits")
             )
-            _logger.info("created token with id %s for partner with id %s", token.id, self.partner_id.id)
+        elif entity_name == "adhesion":
+            payment_details = "Debito automático en CBU: {} ****{}".format(
+                adhesion_data.get("bank"), adhesion_data.get("cbu_number")
+            )
+        else:
+            payment_details = ""
+
+        return {
+            "provider_ref": adhesion_id,
+            "payment_details": payment_details,
+            "pagos360_adhesion_type": entity_name,
+            "pagos360_external_reference": adhesion_data.get("external_reference"),
+            "pagos360_card": adhesion_data.get("card"),
+            "pagos360_card_number": adhesion_data.get("last_four_digits"),
+            "pagos360_cbu_number": adhesion_data.get("cbu_number"),
+            "pagos360_bank": adhesion_data.get("bank"),
+        }
 
     def _send_payment_request(self):
         if self.provider_code == "pagos360":
@@ -272,12 +313,12 @@ class PaymentTransaction(models.Model):
                 return
             if self.token_id.pagos360_adhesion_type == "card_adhesion":
                 req = self._pagos360_card_debit_request()
-                self._process_notification_data(self.simulate_webhook("card_adhesion", req))
+                self._process(self.provider_code, self.simulate_webhook("card_adhesion", req))
             if self.token_id.pagos360_adhesion_type == "adhesion":
                 req = self._pagos360_debit_request()
             self.env.cr.commit()  # pylint: disable=invalid-commit
             if req:
-                self._process_notification_data(self.simulate_webhook(self.token_id.pagos360_adhesion_type, req))
+                self._process(self.provider_code, self.simulate_webhook(self.token_id.pagos360_adhesion_type, req))
                 self.env.cr.commit()  # pylint: disable=invalid-commit
         return super()._send_payment_request()
 
@@ -329,7 +370,7 @@ class PaymentTransaction(models.Model):
                 for data in datas["data"]:
                     payload = tx.simulate_webhook(entity_name, data)
                     result_msg.append(payload)
-                    tx.sudo()._process_notification_data(payload)
+                    tx.sudo()._process(tx.provider_code, payload)
                 datas = tx.provider_id._pagos360_make_request(
                     "/adhesion?external_reference=%s&page=1" % ref_sanitarzed, method="GET"
                 )
@@ -337,19 +378,21 @@ class PaymentTransaction(models.Model):
                 for data in datas["data"]:
                     payload = tx.simulate_webhook(entity_name, data)
                     result_msg.append(payload)
-                    tx.sudo()._process_notification_data(payload)
+                    tx.sudo()._process(tx.provider_code, payload)
 
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != "validation":
                 # https://api.sandbox.pagos360.com/debit-request?page=1
-                data = tx._get_operation_info_from_data(
-                    tx.provider_id._pagos360_make_request(
-                        "/payment-request?external_reference=%s" % ref_sanitarzed, method="GET"
-                    )
-                )
+                if tx.provider_reference:
+                    from_date = (tx.create_date - relativedelta(months=1)).strftime("%d-%m-%Y")
+                    to_date = (tx.create_date + relativedelta(months=1)).strftime("%d-%m-%Y")
+                    url = f"/payment-request?id={tx.provider_reference}&created_at_gte={from_date}&created_at_lte={to_date}"
+                else:
+                    url = "/payment-request?external_reference=%s" % ref_sanitarzed
+                data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request(url, method="GET"))
                 payload = tx.simulate_webhook("payment_request", data)
                 result_msg.append(payload)
-                tx.sudo()._process_notification_data(payload)
+                tx.sudo()._process(tx.provider_code, payload)
             # Check state of payment
             elif tx.pagos360_adhesion_type == "adhesion":
                 data = tx.provider_id._pagos360_make_request(
@@ -357,7 +400,7 @@ class PaymentTransaction(models.Model):
                 )
                 payload = tx.simulate_webhook("debit_request", data["data"][0])
                 result_msg.append(payload)
-                tx.sudo()._process_notification_data(payload)
+                tx.sudo()._process(tx.provider_code, payload)
 
             elif tx.pagos360_adhesion_type == "card_adhesion":
                 data = tx.provider_id._pagos360_make_request(
@@ -365,7 +408,7 @@ class PaymentTransaction(models.Model):
                 )
                 payload = self.simulate_webhook("card_debit_request", data["data"][0])
                 result_msg.append(payload)
-                tx.sudo()._process_notification_data(payload)
+                tx.sudo()._process(tx.provider_code, payload)
             self.env.cr.commit()  # pylint: disable=invalid-commit
         return self.pagos360_readable_result(result_msg)
 

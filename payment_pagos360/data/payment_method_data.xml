@@ -2,26 +2,20 @@
 <odoo noupdate="1">
 
     <record id="payment_method_pagos360" model="payment.method">
-        <field name="sequence">10</field>
         <field name="name">Pagos360</field>
         <field name="code">pagos360</field>
-        <field name="active">False</field>
         <field name="image" type="base64" file="payment_pagos360/static/img/pagos360logo.png"/>
     </record>
 
     <record id="payment_method_pagofacil" model="payment.method">
-        <field name="sequence">20</field>
         <field name="name">PagoFacil</field>
         <field name="code">pagofacil</field>
-        <field name="active">False</field>
         <field name="image" type="base64" file="payment_pagos360/static/img/pagofacil.png"/>
     </record>
 
     <record id="payment_method_rapipago" model="payment.method">
-        <field name="sequence">30</field>
         <field name="name">RapiPago</field>
         <field name="code">rapipago</field>
-        <field name="active">False</field>
         <field name="image" type="base64" file="payment_pagos360/static/img/rapipago.png"/>
     </record>
 

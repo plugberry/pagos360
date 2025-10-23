@@ -2,7 +2,8 @@ import logging
 from datetime import datetime, timedelta
 from math import ceil
 
-from odoo import _, fields, models
+from odoo import _, api, fields, models
+from odoo.tools import config
 from requests.exceptions import RequestException
 
 _logger = logging.getLogger(__name__)
@@ -18,19 +19,40 @@ class PaymentToken(models.Model):
     pagos360_card = fields.Char()
     pagos360_card_number = fields.Char()
 
-    def _build_display_name(self, *args, max_length=34, should_pad=True, **kwargs):
-        if self.provider_code != "pagos360":
-            return super()._build_display_name(*args, max_length=max_length, should_pad=should_pad, **kwargs)
-        else:
-            if self.pagos360_adhesion_type == "card_adhesion":
-                display_name = f"Debito automático en Tarjeta: {self.pagos360_card} **** - {self.pagos360_card_number}"
-            elif self.pagos360_adhesion_type == "adhesion":
-                display_name = f"Debito automático en CBU: {self.pagos360_bank} ****{self.pagos360_cbu_number[-5:]}"
-            return display_name
+    @api.depends(
+        "payment_details",
+        "create_date",
+        "pagos360_adhesion_type",
+        "pagos360_card",
+        "pagos360_card_number",
+        "pagos360_bank",
+        "pagos360_cbu_number",
+    )
+    def _compute_display_name(self):
+        pagos360_tokens = self.filtered(lambda t: t.provider_code == "pagos360")
+        for token in pagos360_tokens:
+            if token.pagos360_adhesion_type == "card_adhesion":
+                token.display_name = (
+                    f"Debito automático en Tarjeta: {token.pagos360_card} **** - {token.pagos360_card_number}"
+                )
+            elif token.pagos360_adhesion_type == "adhesion":
+                token.display_name = (
+                    f"Debito automático en CBU: {token.pagos360_bank} ****{token.pagos360_cbu_number[-5:]}"
+                )
 
-    def write(self, values):
-        res = super().write(values)
-        if "active" in values and values["active"] is False and not self.env.context.get("is_notification"):
+        super(PaymentToken, self - pagos360_tokens)._compute_display_name()
+
+    def _handle_archiving(self):
+        """Handle the archiving of tokens for Pagos360."""
+        super()._handle_archiving()
+
+        # Skip API calls in the following scenarios:
+        # 1. During unit tests (test_enable config is True)
+        # 2. When loading XML data with noupdate flag (demo data or data files)
+        if config["test_enable"] or self.env.context.get("noupdate"):
+            return
+
+        if not self.env.context.get("is_notification"):
             for rec in self.filtered(lambda x: x.provider_code == "pagos360"):
                 endpoint = "adhesion" if rec.pagos360_adhesion_type == "adhesion" else "card-adhesion"
                 id = rec.provider_ref
@@ -38,7 +60,6 @@ class PaymentToken(models.Model):
                     rec.provider_id._pagos360_make_request(f"/{endpoint}/{id}/cancel", method="PUT")
                 except RequestException:
                     _logger.exception("Unable to delete token in PAGOS360")
-        return res
 
     def pagos360_check_for_similar_transactions(self, days_frame=1):
         from_date = datetime.strftime(fields.Date.today() - timedelta(days=days_frame), "%d-%m-%Y")
