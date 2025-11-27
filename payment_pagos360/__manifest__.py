@@ -1,8 +1,7 @@
 {
     "name": "Payment Provider: Pagos 360",
-    "version": "18.0.1.0.0",
+    "version": "19.0.1.0.0",
     "category": "Accounting/Payment Providers",
-    "sequence": 350,
     "author": "Plugberry",
     "depends": ["account_payment"],
     "data": [
@@ -17,7 +16,7 @@
     ],
     "license": "LGPL-3",
     "application": True,
-    'installable': False,
+    "installable": True,
     "post_init_hook": "post_init_hook",
     "uninstall_hook": "uninstall_hook",
 }

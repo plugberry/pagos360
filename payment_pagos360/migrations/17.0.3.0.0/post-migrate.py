@@ -1,4 +1,4 @@
-from odoo import SUPERUSER_ID, Command, api
+from odoo import Command, api
 
 
 def migrate(cr, version):
@@ -6,7 +6,7 @@ def migrate(cr, version):
     Post-migration script to ensure that when the module is already installed previously,
     the change to newer payment method is applied despite the noupdate attribute in the provider data
     """
-    env = api.Environment(cr, SUPERUSER_ID, {})
+    env = api.Environment(cr, api.SUPERUSER_ID, {})
     payment_method_pagos360 = env.ref("payment_pagos360.payment_method_pagos360")
     payment_method_pagofacil = env.ref("payment_pagos360.payment_method_pagofacil")
     payment_method_rapipago = env.ref("payment_pagos360.payment_method_rapipago")

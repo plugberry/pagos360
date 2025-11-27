@@ -7,7 +7,7 @@ from odoo import _, fields, models
 from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools.safe_eval import safe_eval
-from werkzeug import urls
+from odoo.tools.urls import urljoin
 
 from ..controllers.main import Pagos360Controller
 
@@ -59,7 +59,7 @@ class PaymentTransaction(models.Model):
         :rtype: dict
         """
         base_url = self.provider_id.get_base_url()
-        redirect_url = urls.url_join(base_url, Pagos360Controller._return_url)
+        redirect_url = urljoin(base_url, Pagos360Controller._return_url)
 
         first_due_date, first_total = self.get_first_due_values()
         # second_due_date, second_total = self.get_second_due_values()
