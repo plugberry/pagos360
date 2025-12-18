@@ -1,0 +1,113 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* pagos360_invoice_barcode
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0+e\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-18 14:29+0000\n"
+"PO-Revision-Date: 2025-12-18 14:29+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_rp_barcode
+msgid "Código de barras alternativo de RapiPago generado por Pagos360"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_barcode
+msgid "Código de barras de PagoFacil/RapiPago generado por Pagos360"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__display_name
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_payment_transaction__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__id
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_payment_transaction__id
+msgid "ID"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode_image
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_rp_barcode_image
+msgid "Imagen SVG del código de barras alternativo de RapiPago"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_image
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_barcode_image
+msgid "Imagen SVG del código de barras de PagoFacil/RapiPago"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model,name:pagos360_invoice_barcode.model_account_move
+msgid "Journal Entry"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model_terms:ir.ui.view,arch_db:pagos360_invoice_barcode.report_invoice_document
+msgid "Medio de pago electronico"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_amount
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_barcode_amount
+msgid "Monto asociado al código de barras de PagoFacil/RapiPago"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model_terms:ir.ui.view,arch_db:pagos360_invoice_barcode.report_invoice_document
+msgid "PagoFacil / RapiPago:"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode
+msgid "Pagos360 Barcode"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_amount
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_amount
+msgid "Pagos360 Barcode Amount"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_image
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_image
+msgid "Pagos360 Barcode Image"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_rp_barcode
+msgid "Pagos360 Rp Barcode"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode_image
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_rp_barcode_image
+msgid "Pagos360 Rp Barcode Image"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model,name:pagos360_invoice_barcode.model_payment_transaction
+msgid "Payment Transaction"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model_terms:ir.ui.view,arch_db:pagos360_invoice_barcode.report_invoice_document
+msgid "Rapipago:"
+msgstr ""
