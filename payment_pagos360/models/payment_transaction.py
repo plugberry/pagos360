@@ -1,14 +1,14 @@
 import logging
 import pprint
-
-from werkzeug import urls
 from datetime import timedelta
-from dateutil.relativedelta import relativedelta
 
-from odoo import _, models, fields
-from odoo.exceptions import ValidationError, UserError
-from odoo.addons.payment import utils as payment_utils
+from dateutil.relativedelta import relativedelta
+from odoo.exceptions import UserError, ValidationError
 from odoo.tools.safe_eval import safe_eval
+from werkzeug import urls
+
+from odoo import _, fields, models
+from odoo.addons.payment import utils as payment_utils
 
 from ..controllers.main import Pagos360Controller
 
@@ -316,9 +316,7 @@ class PaymentTransaction(models.Model):
             elif not tx.pagos360_adhesion_type and tx.operation != 'validation':
                 # https://api.sandbox.pagos360.com/debit-request?page=1
                 if tx.provider_reference:
-                    from_date = (tx.create_date - relativedelta(months=1)).strftime("%d-%m-%Y")
-                    to_date = (tx.create_date + relativedelta(months=1)).strftime("%d-%m-%Y")
-                    url = f"/payment-request?id={tx.provider_reference}&created_at_gte={from_date}&created_at_lte={to_date}"
+                    url = f"/payment-request?id={tx.provider_reference}"
                 else:
                     url = "/payment-request?external_reference=%s" % ref_sanitarzed
                 data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request(url, method="GET"))
