@@ -2,6 +2,7 @@ import logging
 import pprint
 
 import werkzeug
+import werkzeug.exceptions
 from odoo import http
 from odoo.addons.payment import utils as payment_utils
 from odoo.addons.portal.controllers import portal
@@ -45,10 +46,13 @@ class Pagos360Controller(portal.CustomerPortal):
                 return request.redirect("/my/home")
 
             ref_sanitarzed = tx_sudo.reference.replace("%", "%25")
+            if tx_sudo.provider_reference:
+                url = f"/payment-request?id={tx_sudo.provider_reference}"
+            else:
+                url = "/payment-request?external_reference=%s" % ref_sanitarzed
+
             values = tx_sudo._get_operation_info_from_data(
-                tx_sudo.provider_id._pagos360_make_request(
-                    "/payment-request?external_reference=%s" % ref_sanitarzed, method="GET"
-                )
+                tx_sudo.provider_id._pagos360_make_request(url, method="GET")
             )
             tx_sudo.write(
                 {

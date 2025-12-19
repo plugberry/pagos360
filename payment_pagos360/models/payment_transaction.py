@@ -356,11 +356,11 @@ class PaymentTransaction(models.Model):
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != "validation":
                 # https://api.sandbox.pagos360.com/debit-request?page=1
-                data = tx._get_operation_info_from_data(
-                    tx.provider_id._pagos360_make_request(
-                        "/payment-request?external_reference=%s" % ref_sanitarzed, method="GET"
-                    )
-                )
+                if tx.provider_reference:
+                    url = f"/payment-request?id={tx.provider_reference}"
+                else:
+                    url = "/payment-request?external_reference=%s" % ref_sanitarzed
+                data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request(url, method="GET"))
                 payload = tx.simulate_webhook("payment_request", data)
                 result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
