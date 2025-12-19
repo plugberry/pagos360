@@ -1,11 +1,13 @@
 import logging
 import pprint
-from dateutil.relativedelta import relativedelta
+
+import werkzeug
+import werkzeug.exceptions
+from odoo.exceptions import ValidationError
+from odoo.http import Response, request
 
 from odoo import http
 from odoo.addons.payment import utils as payment_utils
-from odoo.exceptions import ValidationError
-from odoo.http import request, Response
 from odoo.addons.portal.controllers import portal
 
 WEBHOOK_TEST_PAYLOAD = {
@@ -44,9 +46,7 @@ class Pagos360Controller(portal.CustomerPortal):
 
             ref_sanitarzed = tx_sudo.reference.replace("%", "%25")
             if tx_sudo.provider_reference:
-                from_date = (tx_sudo.create_date - relativedelta(months=1)).strftime("%d-%m-%Y")
-                to_date = (tx_sudo.create_date + relativedelta(months=1)).strftime("%d-%m-%Y")
-                url = f"/payment-request?id={tx_sudo.provider_reference}&created_at_gte={from_date}&created_at_lte={to_date}"
+                url = f"/payment-request?id={tx_sudo.provider_reference}"
             else:
                 url = "/payment-request?external_reference=%s" % ref_sanitarzed
 
