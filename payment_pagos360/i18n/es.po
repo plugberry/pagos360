@@ -10,50 +10,53 @@ msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-07-15 19:00+0000\n"
-"PO-Revision-Date: 2024-12-23 16:14+0000\n"
-"Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024\n"
-"Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
+"PO-Revision-Date: 2025-12-22 16:10+0000\n"
+"Last-Translator: carla spiaggi <sca@adhoc.inc>\n"
+"Language-Team: Spanish <https://translation.dev-adhoc.com/projects/"
+"pagos360-19-0/pagos360-19-0-payment_pagos360/es/>\n"
+"Language: es\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: \n"
-"Language: es\n"
-"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=(n == 1) ? 0 : ((n != 0 && n % 1000000 == 0)"
+" ? 1 : 2);\n"
+"X-Generator: Weblate 5.10.4\n"
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "Ante algún inconveniente al realizar su pago contactese a"
-msgstr ""
+msgstr "Ante algún inconveniente al realizar su pago contactese a"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_api_key
 msgid "Api Key (PAGOS360)"
-msgstr ""
+msgstr "Api Key (PAGOS360)"
 
 #. module: payment_pagos360
 #: model:ir.model.fields.selection,name:payment_pagos360.selection__payment_token__pagos360_adhesion_type__adhesion
 msgid "CBU Adhesion"
-msgstr ""
+msgstr "CBU Adherido"
 
 #. module: payment_pagos360
 #: model:ir.actions.server,name:payment_pagos360.action_pagos360_cancel_transaction
 msgid "Cancelar Transaccion (PAGOS360)"
-msgstr ""
+msgstr "Cancelar Transaccion (PAGOS360)"
 
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "Canceled payment with status: %s"
-msgstr ""
+msgstr "Pago cancelado con estado: %s"
 
 #. module: payment_pagos360
 #: model:ir.model.fields.selection,name:payment_pagos360.selection__payment_token__pagos360_adhesion_type__card_adhesion
 msgid "Card Adhesion"
-msgstr ""
+msgstr "Tarjeta adherida"
 
 #. module: payment_pagos360
 #: model:ir.actions.server,name:payment_pagos360.action_info_from_pagos360
 msgid "Check in (PAGOS360)"
-msgstr ""
+msgstr "Check in (PAGOS360)"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__code
@@ -64,116 +67,116 @@ msgstr "Código"
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "Could not establish the connection to the API."
-msgstr ""
+msgstr "No se pudo establecer la conexión a la API."
 
 #. module: payment_pagos360
 #: model:payment.provider,name:payment_pagos360.payment_provider_pagos360
 msgid "Credit & Debit Card (powered by Pagos360)"
-msgstr ""
+msgstr "Tarjeta de Crédito y Débito (powered by Pagos360)"
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
 msgid "Ensure Webhook"
-msgstr ""
+msgstr "Asegurar Webhook"
 
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "Error setting your webhooks."
-msgstr ""
+msgstr "Error al configurar sus webhooks."
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
 msgid "Fees and Due dates"
-msgstr ""
+msgstr "Tarifas y fechas de vencimiento"
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.rapipago_barcode_print
 msgid "Imprima este codigo para abonar en la red de rapipago"
-msgstr ""
+msgstr "Imprima este código para abonar en la red de Rapipago"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_form_url
 msgid "Link formulario debito automático"
-msgstr ""
+msgstr "Link formulario débito automático"
 
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "No transaction found matching reference %s."
-msgstr ""
+msgstr "No se encontró ninguna transacción que coincida con la referencia %s."
 
 #. module: payment_pagos360
 #: model:ir.model.fields.selection,name:payment_pagos360.selection__payment_provider__code__pagos360
 msgid "PAGOS360"
-msgstr ""
+msgstr "PAGOS360"
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.rapipago_barcode_print
 msgid "Pagar Mediante Rapipago"
-msgstr ""
+msgstr "Pagar Mediante Rapipago"
 
 #. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_pagofacil
 msgid "PagoFacil"
-msgstr ""
+msgstr "PagoFacil"
 
 #. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_pagos360
 msgid "Pagos360"
-msgstr ""
+msgstr "Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_adhesion_type
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_adhesion_type
 msgid "Pagos360 Adhesion Type"
-msgstr ""
+msgstr "Tipo de Adhesión Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_bank
 msgid "Pagos360 Bank"
-msgstr ""
+msgstr "Banco Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_card
 msgid "Pagos360 Card"
-msgstr ""
+msgstr "Tarjeta Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_card_number
 msgid "Pagos360 Card Number"
-msgstr ""
+msgstr "Número de tarjeta Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_cbu_number
 msgid "Pagos360 Cbu Number"
-msgstr ""
+msgstr "Número de CBU Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_card_brands
 msgid "Pagos360 Excluded Card Brands"
-msgstr ""
+msgstr "Marcas de tarjetas excluidas de Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_channels
 msgid "Pagos360 Excluded Channels"
-msgstr ""
+msgstr "Canales excluidos de Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_installments
 msgid "Pagos360 Excluded Installments"
-msgstr ""
+msgstr "Cuotas excluidas de Pagos360"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_external_reference
 msgid "Pagos360 External Reference"
-msgstr ""
+msgstr "Referencia externa Pagos360"
 
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "Payment %s"
-msgstr ""
+msgstr "Pago %s"
 
 #. module: payment_pagos360
 #: model:ir.model,name:payment_pagos360.model_payment_provider
@@ -193,34 +196,34 @@ msgstr "Transacción de pago"
 #. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_rapipago
 msgid "RapiPago"
-msgstr ""
+msgstr "RapiPago"
 
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "Received data with missing entity id."
-msgstr ""
+msgstr "Se han recibido datos con el identificador de entidad faltante."
 
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "Received data with missing entity name."
-msgstr ""
+msgstr "Se han recibido datos con el nombre de entidad faltante."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__second_validity_days
 msgid "Second Validity Days"
-msgstr ""
+msgstr "Segundos días de validez"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__second_due_fees
 msgid "Surcharge"
-msgstr ""
+msgstr "Recargo"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_test_api_key
 msgid "Test Api Key (PAGOS360)"
-msgstr ""
+msgstr "Test Api Key (PAGOS360)"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__code
@@ -230,12 +233,12 @@ msgstr "El código técnico de este proveedor de pagos."
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "Usted será redirigido al sitio web de PAGOS360."
-msgstr ""
+msgstr "Usted será redirigido al sitio web de PAGOS360."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__validity_days
 msgid "Validity Days"
-msgstr ""
+msgstr "Días de validez"
 
 #. module: payment_pagos360
 #. odoo-python
@@ -244,39 +247,41 @@ msgid ""
 "You have active tokens in PAGOS360. You must archive them before. IMPORTANT "
 "Be careful: This action also disables tokens in PAGOS360."
 msgstr ""
+"Tiene tokens activos en PAGOS360. Debe archivarlos antes. IMPORTANTE: Esta "
+"acción también deshabilita los tokens en PAGOS360."
 
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "Your Pagos360 Webhook was already set up."
-msgstr ""
+msgstr "Su webhook de Pagos360 ya estaba configurado."
 
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "Your Pagos360 Webhook was successfully set up."
-msgstr ""
+msgstr "Su webhook de Pagos360 se configuró correctamente."
 
 #. module: payment_pagos360
 #: model_terms:payment.provider,auth_msg:payment_pagos360.payment_provider_pagos360
 msgid "Your payment has been authorized."
-msgstr ""
+msgstr "Su pago ha sido autorizado."
 
 #. module: payment_pagos360
 #: model_terms:payment.provider,cancel_msg:payment_pagos360.payment_provider_pagos360
 msgid "Your payment has been cancelled."
-msgstr ""
+msgstr "Su pago ha sido cancelado."
 
 #. module: payment_pagos360
 #: model_terms:payment.provider,pending_msg:payment_pagos360.payment_provider_pagos360
 msgid ""
 "Your payment has been successfully processed but is waiting for approval."
-msgstr ""
+msgstr "Su pago ha sido procesado exitosamente pero está esperando aprobación."
 
 #. module: payment_pagos360
 #: model_terms:payment.provider,done_msg:payment_pagos360.payment_provider_pagos360
 msgid "Your payment has been successfully processed."
-msgstr ""
+msgstr "Su pago ha sido procesado exitosamente."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_channels
@@ -284,13 +289,15 @@ msgid ""
 "['credit_card', 'credit_card_agro', 'debit_card', 'banelco_pmc', "
 "'link_pagos', 'DEBIN', 'wire_transfer', 'non_banking', 'QR',]"
 msgstr ""
+"['credit_card', 'credit_card_agro', 'debit_card', 'banelco_pmc', "
+"'link_pagos', 'DEBIN', 'wire_transfer', 'non_banking', 'QR',]"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_installments
 msgid "[2,3,4,5]"
-msgstr ""
+msgstr "[2,3,4,5]"
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "hola@pagos360.com"
-msgstr ""
+msgstr "hola@pagos360.com"
