@@ -18,6 +18,18 @@ class PaymentTransaction(models.Model):
     _inherit = "payment.transaction"
 
     pagos360_adhesion_type = fields.Selection(related="token_id.pagos360_adhesion_type", store=True)
+    pagos360_effective_payment_date = fields.Date()
+
+    def _create_payment(self, **extra_create_values):
+        self.ensure_one()
+
+        if self.provider_code == "pagos360" and self.pagos360_effective_payment_date:
+            extra_create_values.update(
+                {
+                    "payment_date": self.pagos360_effective_payment_date,
+                }
+            )
+        return super()._create_payment(**extra_create_values)
 
     def _get_specific_rendering_values(self, processing_values):
         """Override of `payment` to return Pagos360-specific rendering values.
@@ -188,8 +200,10 @@ class PaymentTransaction(models.Model):
             return
 
         self.provider_reference = entity_id
+        paid_at = payment_data.get("payload", {}).get("request_result", {}).get("paid_at")
+        if paid_at:
+            self.pagos360_effective_payment_date = paid_at[:10]
         payment_status = payment_data.get("type")
-
         try:
             if payment_status in [
                 "pending",
