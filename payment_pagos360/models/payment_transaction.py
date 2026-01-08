@@ -17,6 +17,7 @@ _logger = logging.getLogger(__name__)
 class PaymentTransaction(models.Model):
     _inherit = "payment.transaction"
 
+<<<<<<< d541e03e5ae87acae3b6afc6f3920371381ea425
     pagos360_adhesion_type = fields.Selection(related="token_id.pagos360_adhesion_type", store=True)
     pagos360_effective_payment_date = fields.Date()
 
@@ -30,6 +31,22 @@ class PaymentTransaction(models.Model):
                 }
             )
         return super()._create_payment(**extra_create_values)
+||||||| 3cb0d716ce244adce86fc6f305f3fb7bc1255a20
+    pagos360_adhesion_type = fields.Selection(related='token_id.pagos360_adhesion_type', store=True)
+=======
+    pagos360_adhesion_type = fields.Selection(related='token_id.pagos360_adhesion_type', store=True)
+    pagos360_effective_payment_date = fields.Date()
+
+
+    def _create_payment(self, **extra_create_values):
+        self.ensure_one()
+
+        if self.provider_code== "pagos360" and self.pagos360_effective_payment_date:
+            extra_create_values.update({
+                'payment_date': self.pagos360_effective_payment_date,
+            })
+        return super()._create_payment(**extra_create_values)
+>>>>>>> d4505fffd5518d0f2138ccc8c7a56784caa18b96
 
     def _get_specific_rendering_values(self, processing_values):
         """Override of `payment` to return Pagos360-specific rendering values.
@@ -161,10 +178,20 @@ class PaymentTransaction(models.Model):
             raise ValidationError("PAGOS360: " + _("Received data with missing entity id."))
 
         self.provider_reference = entity_id
+<<<<<<< d541e03e5ae87acae3b6afc6f3920371381ea425
         paid_at = notification_data.get("payload", {}).get("request_result", {}).get("paid_at")
         if paid_at:
             self.pagos360_effective_payment_date = paid_at[:10]
         payment_status = notification_data.get("type")
+||||||| 3cb0d716ce244adce86fc6f305f3fb7bc1255a20
+        payment_status = notification_data.get('type')
+
+=======
+        paid_at = notification_data.get('payload', {}).get('request_result', {}).get('paid_at')
+        if paid_at:
+            self.pagos360_effective_payment_date = paid_at[:10]
+        payment_status = notification_data.get('type')
+>>>>>>> d4505fffd5518d0f2138ccc8c7a56784caa18b96
         try:
             if payment_status in [
                 "pending",
