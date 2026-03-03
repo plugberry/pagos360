@@ -1,15 +1,15 @@
 # Translation of Odoo Server.
 # This file contains the translation of the following modules:
 # 	* payment_pagos360
-# 
+#
 # Translators:
 # Juan José Scarafía <scarafia.juanjose@gmail.com>, 2024
-# 
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-15 19:00+0000\n"
+"POT-Creation-Date: 2026-03-03 14:32+0000\n"
 "PO-Revision-Date: 2025-12-22 16:10+0000\n"
 "Last-Translator: carla spiaggi <sca@adhoc.inc>\n"
 "Language-Team: Spanish <https://translation.dev-adhoc.com/projects/"
@@ -18,8 +18,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: \n"
-"Plural-Forms: nplurals=3; plural=(n == 1) ? 0 : ((n != 0 && n % 1000000 == 0)"
-" ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n == 1) ? 0 : ((n != 0 && n % 1000000 == "
+"0) ? 1 : 2);\n"
 "X-Generator: Weblate 5.10.4\n"
 
 #. module: payment_pagos360
@@ -75,6 +75,13 @@ msgid "Credit & Debit Card (powered by Pagos360)"
 msgstr "Tarjeta de Crédito y Débito (powered by Pagos360)"
 
 #. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__display_name
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__display_name
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
 msgid "Ensure Webhook"
 msgstr "Asegurar Webhook"
@@ -91,6 +98,13 @@ msgid "Fees and Due dates"
 msgstr "Tarifas y fechas de vencimiento"
 
 #. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__id
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__id
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__id
+msgid "ID"
+msgstr ""
+
+#. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.rapipago_barcode_print
 msgid "Imprima este codigo para abonar en la red de rapipago"
 msgstr "Imprima este código para abonar en la red de Rapipago"
@@ -99,12 +113,6 @@ msgstr "Imprima este código para abonar en la red de Rapipago"
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_form_url
 msgid "Link formulario debito automático"
 msgstr "Link formulario débito automático"
-
-#. module: payment_pagos360
-#. odoo-python
-#: code:addons/payment_pagos360/models/payment_transaction.py:0
-msgid "No transaction found matching reference %s."
-msgstr "No se encontró ninguna transacción que coincida con la referencia %s."
 
 #. module: payment_pagos360
 #: model:ir.model.fields.selection,name:payment_pagos360.selection__payment_provider__code__pagos360
@@ -153,6 +161,11 @@ msgid "Pagos360 Cbu Number"
 msgstr "Número de CBU Pagos360"
 
 #. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_effective_payment_date
+msgid "Pagos360 Effective Payment Date"
+msgstr ""
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_card_brands
 msgid "Pagos360 Excluded Card Brands"
 msgstr "Marcas de tarjetas excluidas de Pagos360"
@@ -199,18 +212,6 @@ msgid "RapiPago"
 msgstr "RapiPago"
 
 #. module: payment_pagos360
-#. odoo-python
-#: code:addons/payment_pagos360/models/payment_transaction.py:0
-msgid "Received data with missing entity id."
-msgstr "Se han recibido datos con el identificador de entidad faltante."
-
-#. module: payment_pagos360
-#. odoo-python
-#: code:addons/payment_pagos360/models/payment_transaction.py:0
-msgid "Received data with missing entity name."
-msgstr "Se han recibido datos con el nombre de entidad faltante."
-
-#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__second_validity_days
 msgid "Second Validity Days"
 msgstr "Segundos días de validez"
@@ -244,11 +245,9 @@ msgstr "Días de validez"
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid ""
-"You have active tokens in PAGOS360. You must archive them before. IMPORTANT "
-"Be careful: This action also disables tokens in PAGOS360."
+"You have active tokens in PAGOS360. You must archive them before. IMPORTANT: "
+"This action will also disable tokens in PAGOS360."
 msgstr ""
-"Tiene tokens activos en PAGOS360. Debe archivarlos antes. IMPORTANTE: Esta "
-"acción también deshabilita los tokens en PAGOS360."
 
 #. module: payment_pagos360
 #. odoo-python
@@ -274,14 +273,13 @@ msgstr "Su pago ha sido cancelado."
 
 #. module: payment_pagos360
 #: model_terms:payment.provider,pending_msg:payment_pagos360.payment_provider_pagos360
-msgid ""
-"Your payment has been successfully processed but is waiting for approval."
-msgstr "Su pago ha sido procesado exitosamente pero está esperando aprobación."
+msgid "Your payment has been processed but is waiting for approval."
+msgstr ""
 
 #. module: payment_pagos360
 #: model_terms:payment.provider,done_msg:payment_pagos360.payment_provider_pagos360
-msgid "Your payment has been successfully processed."
-msgstr "Su pago ha sido procesado exitosamente."
+msgid "Your payment has been processed."
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_channels
@@ -301,3 +299,34 @@ msgstr "[2,3,4,5]"
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "hola@pagos360.com"
 msgstr "hola@pagos360.com"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_token.py:0
+msgid "statefirst_total"
+msgstr ""
+
+#~ msgid "No transaction found matching reference %s."
+#~ msgstr ""
+#~ "No se encontró ninguna transacción que coincida con la referencia %s."
+
+#~ msgid "Received data with missing entity id."
+#~ msgstr "Se han recibido datos con el identificador de entidad faltante."
+
+#~ msgid "Received data with missing entity name."
+#~ msgstr "Se han recibido datos con el nombre de entidad faltante."
+
+#~ msgid ""
+#~ "You have active tokens in PAGOS360. You must archive them before. "
+#~ "IMPORTANT Be careful: This action also disables tokens in PAGOS360."
+#~ msgstr ""
+#~ "Tiene tokens activos en PAGOS360. Debe archivarlos antes. IMPORTANTE: "
+#~ "Esta acción también deshabilita los tokens en PAGOS360."
+
+#~ msgid ""
+#~ "Your payment has been successfully processed but is waiting for approval."
+#~ msgstr ""
+#~ "Su pago ha sido procesado exitosamente pero está esperando aprobación."
+
+#~ msgid "Your payment has been successfully processed."
+#~ msgstr "Su pago ha sido procesado exitosamente."
