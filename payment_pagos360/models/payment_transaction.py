@@ -161,8 +161,12 @@ class PaymentTransaction(models.Model):
             raise ValidationError("PAGOS360: " + _("Received data with missing entity id."))
 
         self.provider_reference = entity_id
-        paid_at = notification_data.get("payload", {}).get("request_result", {}).get("paid_at")
-        if paid_at:
+        request_result = notification_data.get("payload", {}).get("request_result")
+        if request_result and isinstance(request_result, dict):
+            paid_at = request_result.get("paid_at")
+            self.pagos360_effective_payment_date = paid_at[:10]
+        elif request_result and isinstance(request_result, list):
+            paid_at = request_result[0].get("paid_at")
             self.pagos360_effective_payment_date = paid_at[:10]
         payment_status = notification_data.get("type")
         try:
