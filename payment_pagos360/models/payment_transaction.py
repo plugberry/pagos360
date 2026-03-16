@@ -200,7 +200,12 @@ class PaymentTransaction(models.Model):
             return
 
         self.provider_reference = entity_id
-        paid_at = payment_data.get("payload", {}).get("request_result", {}).get("paid_at")
+        request_result = payment_data.get("payload", {}).get("request_result")
+        paid_at = False
+        if request_result and isinstance(request_result, dict):
+            paid_at = request_result.get("paid_at")
+        elif request_result and isinstance(request_result, list):
+            paid_at = request_result[0].get("paid_at")
         if paid_at:
             self.pagos360_effective_payment_date = paid_at[:10]
         payment_status = payment_data.get("type")
