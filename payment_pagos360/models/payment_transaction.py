@@ -197,9 +197,25 @@ class PaymentTransaction(models.Model):
             raise ValidationError("PAGOS360: " + _("Received data with missing entity id."))
 
         self.provider_reference = entity_id
+<<<<<<< 46afca8d5b9bed90a0cffff5410e6e01cb07043d
         paid_at = self._pagos360_extract_paid_at(notification_data.get("payload", {}).get("request_result", {}))
         payment_status = notification_data.get("type")
 
+||||||| 2f3b7d8fa46d7d72b1b9b86d39876c130179c59b
+        paid_at = notification_data.get('payload', {}).get('request_result', {}).get('paid_at')
+        if paid_at:
+            self.pagos360_effective_payment_date = paid_at[:10]
+        payment_status = notification_data.get('type')
+=======
+        paid_at = self._pagos360_extract_paid_at(notification_data.get('payload', {}).get('request_result', {}))
+        payment_status = notification_data.get('type')
+        if not paid_at and payment_status == 'paid':
+            paid_at = self._pagos360_get_paid_at_from_request(entity_name, entity_id)
+
+
+        if paid_at:
+            self.pagos360_effective_payment_date = paid_at[:10]
+>>>>>>> 793f5062d739b1167e6fc1f626a97a9463c2b7dc
         try:
             if payment_status in [
                 "pending",
@@ -265,6 +281,7 @@ class PaymentTransaction(models.Model):
             """
             self._set_error("PAGOS360: " + message)
 
+<<<<<<< 46afca8d5b9bed90a0cffff5410e6e01cb07043d
     def _pagos360_get_paid_at_from_request(self, entity_name, entity_id):
         """Fetch entity info from Pagos360 and extract the first available paid_at value."""
         endpoint_by_entity = {
@@ -306,6 +323,51 @@ class PaymentTransaction(models.Model):
 
         return False
 
+||||||| 2f3b7d8fa46d7d72b1b9b86d39876c130179c59b
+=======
+    def _pagos360_get_paid_at_from_request(self, entity_name, entity_id):
+        """Fetch entity info from Pagos360 and extract the first available paid_at value."""
+        endpoint_by_entity = {
+            'payment_request': f'/payment-request?id={entity_id}',
+            'card_adhesion': f'/card-adhesion/{entity_id}',
+            'adhesion': f'/adhesion/{entity_id}',
+        }
+        endpoint = endpoint_by_entity.get(entity_name)
+        if not endpoint:
+            return False
+
+        try:
+            entity_data = self.provider_id._pagos360_make_request(endpoint, method='GET')
+        except Exception as e:
+            _logger.warning(
+                "Could not fetch paid_at from Pagos360 API for entity %s (%s): %s",
+                entity_name, entity_id, e
+            )
+            return False
+
+        return self._pagos360_extract_paid_at(entity_data)
+
+    def _pagos360_extract_paid_at(self, data):
+        """Recursively look for a paid_at key in Pagos360 response payloads."""
+        if isinstance(data, dict):
+            paid_at = data.get('paid_at')
+            if paid_at:
+                return paid_at
+            for value in data.values():
+                paid_at = self._pagos360_extract_paid_at(value)
+                if paid_at:
+                    return paid_at
+            return False
+
+        if isinstance(data, list):
+            for item in data:
+                paid_at = self._pagos360_extract_paid_at(item)
+                if paid_at:
+                    return paid_at
+
+        return False
+
+>>>>>>> 793f5062d739b1167e6fc1f626a97a9463c2b7dc
     def _pagos360_tokenize_from_feedback_data(self, notification_data):
         """Create a new token based on the feedback data.
 
