@@ -23,12 +23,24 @@ class PaymentTransaction(models.Model):
     def _create_payment(self, **extra_create_values):
         self.ensure_one()
 
+<<<<<<< d976e68bde660ffa603753003865da8c598b4cc2
         if self.provider_code == "pagos360" and self.pagos360_effective_payment_date:
             extra_create_values.update(
                 {
                     "date": self.pagos360_effective_payment_date,
                 }
             )
+||||||| 0d2133887b71aae0dd51929807db50816f8ed6db
+        if self.provider_code== "pagos360" and self.pagos360_effective_payment_date:
+            extra_create_values.update({
+                'payment_date': self.pagos360_effective_payment_date,
+            })
+=======
+        if self.provider_code== "pagos360" and self.pagos360_effective_payment_date:
+            extra_create_values.update({
+                'payment': self.pagos360_effective_payment_date,
+            })
+>>>>>>> 240231ffce74b432fb16e3e90d2273f042337312
         return super()._create_payment(**extra_create_values)
 
     def _get_specific_rendering_values(self, processing_values):
