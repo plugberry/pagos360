@@ -161,14 +161,9 @@ class PaymentTransaction(models.Model):
             raise ValidationError("PAGOS360: " + _("Received data with missing entity id."))
 
         self.provider_reference = entity_id
-        request_result = notification_data.get("payload", {}).get("request_result")
-        if request_result and isinstance(request_result, dict):
-            paid_at = request_result.get("paid_at")
-            self.pagos360_effective_payment_date = paid_at[:10]
-        elif request_result and isinstance(request_result, list):
-            paid_at = request_result[0].get("paid_at")
-            self.pagos360_effective_payment_date = paid_at[:10]
+        paid_at = self._pagos360_extract_paid_at(notification_data.get("payload", {}).get("request_result", {}))
         payment_status = notification_data.get("type")
+
         try:
             if payment_status in [
                 "pending",
@@ -186,7 +181,9 @@ class PaymentTransaction(models.Model):
                 if not self.token_id:
                     self._pagos360_tokenize_from_feedback_data(notification_data)
             elif payment_status == "paid":
-                self._set_done(extra_allowed_states=("cancel",))
+                if paid_at:
+                    self.pagos360_effective_payment_date = paid_at[:10]
+                self._set_done(extra_allowed_states=("cancel", "error"))
             elif payment_status == "reverted":
                 self.payment_id.action_draft()
                 self.payment_id.action_cancel()
@@ -231,6 +228,47 @@ class PaymentTransaction(models.Model):
                 - Mensaje de Error": {e}<br/>
             """
             self._set_error("PAGOS360: " + message)
+
+    def _pagos360_get_paid_at_from_request(self, entity_name, entity_id):
+        """Fetch entity info from Pagos360 and extract the first available paid_at value."""
+        endpoint_by_entity = {
+            "payment_request": f"/payment-request?id={entity_id}",
+            "card_adhesion": f"/card-adhesion/{entity_id}",
+            "adhesion": f"/adhesion/{entity_id}",
+        }
+        endpoint = endpoint_by_entity.get(entity_name)
+        if not endpoint:
+            return False
+
+        try:
+            entity_data = self.provider_id._pagos360_make_request(endpoint, method="GET")
+        except Exception as e:
+            _logger.warning(
+                "Could not fetch paid_at from Pagos360 API for entity %s (%s): %s", entity_name, entity_id, e
+            )
+            return False
+
+        return self._pagos360_extract_paid_at(entity_data)
+
+    def _pagos360_extract_paid_at(self, data):
+        """Recursively look for a paid_at key in Pagos360 response payloads."""
+        if isinstance(data, dict):
+            paid_at = data.get("paid_at")
+            if paid_at:
+                return paid_at
+            for value in data.values():
+                paid_at = self._pagos360_extract_paid_at(value)
+                if paid_at:
+                    return paid_at
+            return False
+
+        if isinstance(data, list):
+            for item in data:
+                paid_at = self._pagos360_extract_paid_at(item)
+                if paid_at:
+                    return paid_at
+
+        return False
 
     def _pagos360_tokenize_from_feedback_data(self, notification_data):
         """Create a new token based on the feedback data.
@@ -360,11 +398,11 @@ class PaymentTransaction(models.Model):
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != "validation":
                 # https://api.sandbox.pagos360.com/debit-request?page=1
-                data = tx._get_operation_info_from_data(
-                    tx.provider_id._pagos360_make_request(
-                        "/payment-request?external_reference=%s" % ref_sanitarzed, method="GET"
-                    )
-                )
+                if tx.provider_reference:
+                    url = f"/payment-request?id={tx.provider_reference}"
+                else:
+                    url = "/payment-request?external_reference=%s" % ref_sanitarzed
+                data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request(url, method="GET"))
                 payload = tx.simulate_webhook("payment_request", data)
                 result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
