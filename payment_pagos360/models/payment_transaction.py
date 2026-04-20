@@ -27,7 +27,7 @@ class PaymentTransaction(models.Model):
 
         if self.provider_code== "pagos360" and self.pagos360_effective_payment_date:
             extra_create_values.update({
-                'payment': self.pagos360_effective_payment_date,
+                'date': self.pagos360_effective_payment_date,
             })
         return super()._create_payment(**extra_create_values)
 
