@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-03 14:32+0000\n"
+"POT-Creation-Date: 2026-05-07 21:27+0000\n"
 "PO-Revision-Date: 2025-12-22 16:10+0000\n"
 "Last-Translator: carla spiaggi <sca@adhoc.inc>\n"
 "Language-Team: Spanish <https://translation.dev-adhoc.com/projects/"
@@ -252,6 +252,20 @@ msgstr ""
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid ""
+"You must set a Test API Key for PAGOS360 before setting the provider in test "
+"mode."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid "You must set an API Key for PAGOS360 before enabling the provider."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "Your Pagos360 Webhook was already set up."
 msgstr "Su webhook de Pagos360 ya estaba configurado."
 
@@ -291,11 +305,6 @@ msgstr ""
 "'link_pagos', 'DEBIN', 'wire_transfer', 'non_banking', 'QR',]"
 
 #. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_installments
-msgid "[2,3,4,5]"
-msgstr "[2,3,4,5]"
-
-#. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "hola@pagos360.com"
 msgstr "hola@pagos360.com"
@@ -305,6 +314,9 @@ msgstr "hola@pagos360.com"
 #: code:addons/payment_pagos360/models/payment_token.py:0
 msgid "statefirst_total"
 msgstr ""
+
+#~ msgid "[2,3,4,5]"
+#~ msgstr "[2,3,4,5]"
 
 #~ msgid "No transaction found matching reference %s."
 #~ msgstr ""
