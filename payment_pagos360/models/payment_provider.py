@@ -16,12 +16,8 @@ class PaymentProvider(models.Model):
     _inherit = "payment.provider"
 
     code = fields.Selection(selection_add=[("pagos360", "PAGOS360")], ondelete={"pagos360": "set default"})
-    pagos360_api_key = fields.Char(
-        string="Api Key (PAGOS360)", required_if_provider="pagos360", groups="base.group_system"
-    )
-    pagos360_test_api_key = fields.Char(
-        string="Test Api Key (PAGOS360)", required_if_provider="pagos360", groups="base.group_system"
-    )
+    pagos360_api_key = fields.Char(string="Api Key (PAGOS360)", groups="base.group_system")
+    pagos360_test_api_key = fields.Char(string="Test Api Key (PAGOS360)", groups="base.group_system")
     pagos360_form_url = fields.Char("Link formulario debito automático")
 
     validity_days = fields.Integer(default=15)
@@ -203,4 +199,14 @@ class PaymentProvider(models.Model):
                             "IMPORTANT: This action will also disable tokens in PAGOS360."
                         )
                     )
-        return super().write(values)
+        res = super().write(values)
+        enabled_providers = self.filtered(lambda p: p.code == "pagos360" and p.state in ["enabled", "test"])
+        if enabled_providers:
+            for provider in enabled_providers:
+                if provider.state == "enabled" and not provider.pagos360_api_key:
+                    raise UserError(_("You must set an API Key for PAGOS360 before enabling the provider."))
+                elif provider.state == "test" and not provider.pagos360_test_api_key:
+                    raise UserError(
+                        _("You must set a Test API Key for PAGOS360 before setting the provider in test mode.")
+                    )
+        return res
