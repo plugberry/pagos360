@@ -20,6 +20,40 @@ class PaymentTransaction(models.Model):
 
     pagos360_adhesion_type = fields.Selection(related="token_id.pagos360_adhesion_type", store=True)
     pagos360_effective_payment_date = fields.Date()
+    pagos360_child_amount = fields.Float(
+        string="Pagos 360 Child Charge Amount",
+        help="Original transaction amount preserved when the operation is forced to "
+        "`validation` by `pagos360_force_adhesion`. Used as the amount of the child "
+        "online_token transaction spawned after the adhesion is signed.",
+    )
+
+    @api.model
+    def _get_specific_create_values(self, provider_code, values):
+        """Force adhesion-first flow when the provider has `pagos360_force_adhesion` enabled.
+
+        Direct/redirect payments are converted into validation transactions so the customer
+        goes through the Pagos 360 adhesion form first. Once the adhesion is signed and a
+        token is created, `_pagos360_spawn_child_charge` fires the actual charge as a
+        child transaction against that token.
+        """
+        res = super()._get_specific_create_values(provider_code, values)
+        if provider_code != "pagos360":
+            return res
+        if values.get("operation") not in ("online_redirect", "online_direct"):
+            return res
+        provider = self.env["payment.provider"].browse(values.get("provider_id"))
+        if not provider.pagos360_force_adhesion:
+            return res
+        res.update(
+            {
+                "operation": "validation",
+                "tokenize": True,
+                "pagos360_child_amount": values.get("amount", 0.0),
+                "amount": 0.0,
+                "currency_id": provider._get_validation_currency().id,
+            }
+        )
+        return res
 
     def _create_payment(self, **extra_create_values):
         self.ensure_one()
@@ -171,11 +205,15 @@ class PaymentTransaction(models.Model):
         """Override of payment to extract the amount and currency from the payment data."""
         if self.provider_code != "pagos360":
             return super()._extract_amount_data(payment_data)
-
-        request_result = payment_data.get("payload", {}).get("request_result", [])
         amount = 0.0
-        for result in request_result:
-            amount += result.get("amount", 0.0)
+        if not self.pagos360_adhesion_type:
+            request_result = payment_data.get("payload", {}).get("request_result", [])
+            for result in request_result:
+                amount += result.get("amount", 0.0)
+        elif self.pagos360_adhesion_type == "adhesion":
+            amount += payment_data.get("payload", {}).get("first_total", 0.0)
+        elif self.pagos360_adhesion_type == "card_adhesion":
+            amount += payment_data.get("payload", {}).get("amount", 0.0)
 
         return {
             "amount": amount,
@@ -221,6 +259,8 @@ class PaymentTransaction(models.Model):
                 self._set_done()
                 if not self.token_id and self.tokenize:
                     self._tokenize(payment_data)
+                if not self.child_transaction_ids:
+                    self._pagos360_spawn_child_charge()
             elif payment_status == "paid":
                 if paid_at:
                     self.pagos360_effective_payment_date = paid_at[:10]
@@ -394,7 +434,9 @@ class PaymentTransaction(models.Model):
                 "card_adhesion_id": int(self.token_id.provider_ref),
             }
         }
-        return self.provider_id._pagos360_make_request("card-debit-request", data=data, method="POST")
+        res = self.provider_id._pagos360_make_request("card-debit-request", data=data, method="POST")
+        self.provider_reference = res.get("id")
+        return res
 
     def _pagos360_next_business_day(self, due_date, days=3):
         data = {"next_business_day": {"date": due_date.strftime("%d-%m-%Y"), "days": days}}
@@ -412,7 +454,9 @@ class PaymentTransaction(models.Model):
                 "adhesion_id": int(self.token_id.provider_ref),
             }
         }
-        return self.provider_id._pagos360_make_request("debit-request", data=data, method="POST")
+        res = self.provider_id._pagos360_make_request("debit-request", data=data, method="POST")
+        self.provider_reference = res.get("id")
+        return res
 
     def get_pagos360_info(self, check_payment_state=True):
         result_msg = []
@@ -506,6 +550,69 @@ class PaymentTransaction(models.Model):
             txt += ["---------------------------"]
 
         raise UserError("%s" % " \n".join(txt))
+
+    def pagos360_spawn_child_charge(self):
+        self._pagos360_spawn_child_charge()
+
+    def _pagos360_spawn_child_charge(self):
+        """Create and trigger a child charge transaction after an adhesion is signed.
+
+        Called from `_apply_updates` when a Pagos 360 validation transaction is signed and
+        the provider has `pagos36
+        0_force_adhesion` enabled. Uses `pagos360_child_amount`
+        (preserved at creation time by `_get_specific_create_values`) as the cobro amount,
+        propagates the sale/invoice links so downstream reconciliation keeps working, and
+        triggers `_charge_with_token` to actually charge the customer.
+        """
+        self.ensure_one()
+        if self.provider_code != "pagos360":
+            return
+        if self.operation != "validation":
+            return
+        if self.source_transaction_id:
+            return
+        if not self.token_id:
+            return
+        if not self.provider_id.pagos360_force_adhesion:
+            return
+        if self.child_transaction_ids.filtered(lambda c: c.operation == "online_token"):
+            return
+
+        amount = self.pagos360_child_amount
+        if not amount:
+            _logger.info(
+                "Pagos 360: skipping child charge spawn for tx %s — pagos360_child_amount is empty",
+                self.reference,
+            )
+            return
+
+        child = self._create_child_transaction(
+            amount,
+            operation="online_token",
+            **self._pagos360_get_child_link_vals(),
+        )
+        _logger.info(
+            "Pagos 360: spawned child charge %s on token %s from validation tx %s.",
+            child.reference,
+            self.token_id.display_name,
+            self.reference,
+        )
+        child._charge_with_token()
+
+    def _pagos360_get_child_link_vals(self):
+        """Return M2M commands to propagate sale order and invoice links to the child.
+
+        Keeping the same links on the child cobro is what lets the standard Odoo flows
+        (reconciliation, invoice payment, sale confirmation) react to the child's done
+        state as if the user had paid directly.
+        """
+        self.ensure_one()
+        link_vals = {}
+        if "sale_order_ids" in self._fields and self.sale_order_ids:
+            link_vals["sale_order_ids"] = [(6, 0, self.sale_order_ids.ids)]
+        if "invoice_ids" in self._fields and self.invoice_ids:
+            link_vals["invoice_ids"] = [(6, 0, self.invoice_ids.ids)]
+        return link_vals
 
     def simulate_webhook(self, entity_name, data):
         if not data:

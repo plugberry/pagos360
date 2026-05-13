@@ -29,6 +29,14 @@ class PaymentProvider(models.Model):
     )
     pagos360_excluded_installments = fields.Text(help="[2,3,4,5]")
     pagos360_excluded_card_brands = fields.Text()
+    pagos360_force_adhesion = fields.Boolean(
+        string="Force adhesion",
+        help="If enabled, every transaction routed through this provider is converted into an "
+        "adhesion (token capture). Once the adhesion is signed, a child transaction is created "
+        "automatically to charge the original amount against the new token. Use this for use "
+        "cases where the priority is to secure the customer's adhesion (e.g. subscription "
+        "checkout) instead of a one-shot payment.",
+    )
 
     @api.constrains("pagos360_excluded_channels")
     def _validate_pagos360_excluded_channels(self):
