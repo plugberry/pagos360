@@ -10,6 +10,7 @@
         'views/payment_transaction_views.xml',
         'data/payment_method_data.xml',
         'data/payment_provider_data.xml',
+        'data/ir_cron_data.xml',
     ],
     'demo': [
         'demo/payment_provider_demo.xml',
