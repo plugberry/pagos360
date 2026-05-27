@@ -3,12 +3,11 @@ import pprint
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
+from odoo import _, api, fields, models
+from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
 from odoo.tools.urls import urljoin
-
-from odoo import _, api, fields, models
-from odoo.addons.payment import utils as payment_utils
 
 from ..controllers.main import Pagos360Controller
 
@@ -208,6 +207,8 @@ class PaymentTransaction(models.Model):
         amount = 0.0
         if not self.pagos360_adhesion_type:
             request_result = payment_data.get("payload", {}).get("request_result", [])
+            if not request_result:
+                return None
             for result in request_result:
                 amount += result.get("amount", 0.0)
         elif self.pagos360_adhesion_type == "adhesion":
