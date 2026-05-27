@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-07 21:27+0000\n"
+"POT-Creation-Date: 2026-05-27 18:09+0000\n"
 "PO-Revision-Date: 2025-12-22 16:10+0000\n"
 "Last-Translator: carla spiaggi <sca@adhoc.inc>\n"
 "Language-Team: Spanish <https://translation.dev-adhoc.com/projects/"
@@ -98,10 +98,26 @@ msgid "Fees and Due dates"
 msgstr "Tarifas y fechas de vencimiento"
 
 #. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_force_adhesion
+msgid "Force adhesion"
+msgstr ""
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__id
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__id
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__id
 msgid "ID"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_force_adhesion
+msgid ""
+"If enabled, every transaction routed through this provider is converted into "
+"an adhesion (token capture). Once the adhesion is signed, a child "
+"transaction is created automatically to charge the original amount against "
+"the new token. Use this for use cases where the priority is to secure the "
+"customer's adhesion (e.g. subscription checkout) instead of a one-shot "
+"payment."
 msgstr ""
 
 #. module: payment_pagos360
@@ -113,6 +129,14 @@ msgstr "Imprima este código para abonar en la red de Rapipago"
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_form_url
 msgid "Link formulario debito automático"
 msgstr "Link formulario débito automático"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_transaction__pagos360_child_amount
+msgid ""
+"Original transaction amount preserved when the operation is forced to "
+"`validation` by `pagos360_force_adhesion`. Used as the amount of the child "
+"online_token transaction spawned after the adhesion is signed."
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields.selection,name:payment_pagos360.selection__payment_provider__code__pagos360
@@ -128,6 +152,11 @@ msgstr "Pagar Mediante Rapipago"
 #: model:payment.method,name:payment_pagos360.payment_method_pagofacil
 msgid "PagoFacil"
 msgstr "PagoFacil"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_child_amount
+msgid "Pagos 360 Child Charge Amount"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_pagos360
