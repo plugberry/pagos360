@@ -3,12 +3,11 @@ import pprint
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
+from odoo import _, api, fields, models
+from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
 from odoo.tools.urls import urljoin
-
-from odoo import _, api, fields, models
-from odoo.addons.payment import utils as payment_utils
 
 from ..controllers.main import Pagos360Controller
 
@@ -350,7 +349,7 @@ class PaymentTransaction(models.Model):
 
         return False
 
-    def _pagos360_tokenize_from_feedback_data(self, payment_data):
+    def _extract_token_values(self, payment_data):
         """Create a new token based on the feedback data.
 
         Note: self.ensure_one()
