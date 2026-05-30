@@ -4,7 +4,7 @@ from odoo.tests.common import TransactionCase, tagged
 
 
 @tagged("post_install", "-at_install")
-class TestForceAdhesion(TransactionCase):
+class TestAdhesion(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -16,7 +16,7 @@ class TestForceAdhesion(TransactionCase):
 
     # --- _get_specific_create_values --------------------------------------------------
 
-    def _build_values(self, operation, amount=100.0):
+    def _build_values(self, operation, amount=100.0, tokenize=False):
         return {
             "provider_id": self.provider.id,
             "payment_method_id": self.payment_method.id,
@@ -24,39 +24,65 @@ class TestForceAdhesion(TransactionCase):
             "amount": amount,
             "currency_id": self.currency.id,
             "partner_id": self.partner.id,
+            "tokenize": tokenize,
         }
 
-    def test_create_values_flips_redirect_when_force_adhesion_on(self):
-        self.provider.pagos360_force_adhesion = True
+    def test_create_values_flips_redirect_when_tokenize(self):
+        """Online payment + tokenize=True (subscription, or 'save my details') → adhesion flow."""
         res = self.env["payment.transaction"]._get_specific_create_values(
-            "pagos360", self._build_values("online_redirect", amount=250.0)
+            "pagos360", self._build_values("online_redirect", amount=250.0, tokenize=True)
         )
         self.assertEqual(res["operation"], "validation")
         self.assertTrue(res["tokenize"])
         self.assertEqual(res["amount"], 0.0)
         self.assertEqual(res["pagos360_child_amount"], 250.0)
 
-    def test_create_values_noop_when_force_adhesion_off(self):
-        self.provider.pagos360_force_adhesion = False
+    def test_create_values_noop_when_not_tokenize(self):
+        """One-shot payment (tokenize falsy) stays a plain payment-request."""
         res = self.env["payment.transaction"]._get_specific_create_values(
-            "pagos360", self._build_values("online_redirect", amount=250.0)
+            "pagos360", self._build_values("online_redirect", amount=250.0, tokenize=False)
         )
         self.assertNotIn("operation", res)
         self.assertNotIn("pagos360_child_amount", res)
 
     def test_create_values_noop_for_token_operation(self):
-        self.provider.pagos360_force_adhesion = True
         res = self.env["payment.transaction"]._get_specific_create_values(
-            "pagos360", self._build_values("online_token", amount=250.0)
+            "pagos360", self._build_values("online_token", amount=250.0, tokenize=True)
         )
         self.assertNotIn("operation", res)
 
     def test_create_values_noop_for_other_provider_code(self):
-        self.provider.pagos360_force_adhesion = True
         res = self.env["payment.transaction"]._get_specific_create_values(
-            "stripe", self._build_values("online_redirect", amount=250.0)
+            "stripe", self._build_values("online_redirect", amount=250.0, tokenize=True)
         )
         self.assertNotIn("operation", res)
+
+    # --- _is_tokenization_required ----------------------------------------------------
+
+    def test_tokenization_not_required_when_adhesion_off(self):
+        """Flag off short-circuits to False even if super (subscription) would require it."""
+        self.provider.pagos360_adhesion_on_subscription = False
+        with patch(
+            "odoo.addons.payment.models.payment_provider.PaymentProvider._is_tokenization_required",
+            return_value=True,
+        ):
+            self.assertFalse(self.provider._is_tokenization_required())
+
+    def test_tokenization_delegates_to_super_when_adhesion_on(self):
+        """Flag on delegates to super (subscription modules can still force it)."""
+        self.provider.pagos360_adhesion_on_subscription = True
+        with patch(
+            "odoo.addons.payment.models.payment_provider.PaymentProvider._is_tokenization_required",
+            return_value=True,
+        ):
+            self.assertTrue(self.provider._is_tokenization_required())
+
+    def test_tokenization_multi_record_is_safe(self):
+        """The multi-record call from _get_compatible_providers must not raise."""
+        others = self.env["payment.provider"].search([("code", "!=", "pagos360")], limit=1)
+        providers = self.provider | others
+        # Should delegate to super (len(self) != 1) without touching pagos360 fields.
+        self.assertFalse(providers._is_tokenization_required())
 
     # --- _pagos360_spawn_child_charge -------------------------------------------------
 
@@ -79,7 +105,6 @@ class TestForceAdhesion(TransactionCase):
         return tx
 
     def test_spawn_creates_child_when_conditions_met(self):
-        self.provider.pagos360_force_adhesion = True
         tx = self._make_validation_tx(child_amount=750.0)
         with patch.object(
             type(self.env["payment.transaction"]), "_charge_with_token", return_value=None
@@ -93,30 +118,18 @@ class TestForceAdhesion(TransactionCase):
         self.assertEqual(children.source_transaction_id, tx)
         mock_charge.assert_called_once()
 
-    def test_spawn_noop_when_flag_off(self):
-        self.provider.pagos360_force_adhesion = False
-        tx = self._make_validation_tx()
-        with patch.object(
-            type(self.env["payment.transaction"]), "_charge_with_token", return_value=None
-        ) as mock_charge:
-            tx._pagos360_spawn_child_charge()
-        self.assertFalse(tx.child_transaction_ids)
-        mock_charge.assert_not_called()
-
     def test_spawn_noop_without_token(self):
-        self.provider.pagos360_force_adhesion = True
         tx = self._make_validation_tx(with_token=False)
         tx._pagos360_spawn_child_charge()
         self.assertFalse(tx.child_transaction_ids)
 
     def test_spawn_noop_when_child_amount_zero(self):
-        self.provider.pagos360_force_adhesion = True
+        """A portal adhesion (no child amount) only creates the token, never a cobro."""
         tx = self._make_validation_tx(child_amount=0.0)
         tx._pagos360_spawn_child_charge()
         self.assertFalse(tx.child_transaction_ids)
 
     def test_spawn_is_idempotent(self):
-        self.provider.pagos360_force_adhesion = True
         tx = self._make_validation_tx(child_amount=500.0)
         with patch.object(type(self.env["payment.transaction"]), "_charge_with_token", return_value=None):
             tx._pagos360_spawn_child_charge()
@@ -124,7 +137,6 @@ class TestForceAdhesion(TransactionCase):
         self.assertEqual(len(tx.child_transaction_ids), 1)
 
     def test_spawn_noop_on_child_transaction(self):
-        self.provider.pagos360_force_adhesion = True
         parent = self._make_validation_tx(child_amount=500.0)
         with patch.object(type(self.env["payment.transaction"]), "_charge_with_token", return_value=None):
             parent._pagos360_spawn_child_charge()

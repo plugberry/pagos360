@@ -1,1 +1,1 @@
-from . import test_force_adhesion
+from . import test_adhesion

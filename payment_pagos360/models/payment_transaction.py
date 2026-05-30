@@ -3,12 +3,11 @@ import pprint
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
+from odoo import _, api, fields, models
+from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
 from odoo.tools.urls import urljoin
-
-from odoo import _, api, fields, models
-from odoo.addons.payment import utils as payment_utils
 
 from ..controllers.main import Pagos360Controller
 
@@ -22,28 +21,30 @@ class PaymentTransaction(models.Model):
     pagos360_effective_payment_date = fields.Date()
     pagos360_child_amount = fields.Float(
         string="Pagos 360 Child Charge Amount",
-        help="Original transaction amount preserved when the operation is forced to "
-        "`validation` by `pagos360_force_adhesion`. Used as the amount of the child "
-        "online_token transaction spawned after the adhesion is signed.",
+        help="Original transaction amount preserved when an online payment is converted to a "
+        "`validation` because tokenization was requested/required. Used as the amount of the "
+        "child online_token transaction spawned after the adhesion is signed.",
     )
 
     @api.model
     def _get_specific_create_values(self, provider_code, values):
-        """Force adhesion-first flow when the provider has `pagos360_force_adhesion` enabled.
+        """Route online payments through the adhesion form when tokenization is wanted.
 
-        Direct/redirect payments are converted into validation transactions so the customer
-        goes through the Pagos 360 adhesion form first. Once the adhesion is signed and a
-        token is created, `_pagos360_spawn_child_charge` fires the actual charge as a
-        child transaction against that token.
+        When a Pagos 360 online payment is flagged to tokenize (the customer ticked 'Save my
+        payment details', or tokenization is required because the order is a subscription), the
+        transaction is converted into a validation so the customer goes through the Pagos 360
+        adhesion form first. Once the adhesion is signed and a token is created,
+        `_pagos360_spawn_child_charge` fires the actual charge as a child transaction against
+        that token. Plain one-shot payments (tokenize falsy) keep going through `/payment-request`.
         """
         res = super()._get_specific_create_values(provider_code, values)
         if provider_code != "pagos360":
             return res
         if values.get("operation") not in ("online_redirect", "online_direct"):
             return res
-        provider = self.env["payment.provider"].browse(values.get("provider_id"))
-        if not provider.pagos360_force_adhesion:
+        if not values.get("tokenize"):
             return res
+        provider = self.env["payment.provider"].browse(values.get("provider_id"))
         res.update(
             {
                 "operation": "validation",
@@ -557,12 +558,14 @@ class PaymentTransaction(models.Model):
     def _pagos360_spawn_child_charge(self):
         """Create and trigger a child charge transaction after an adhesion is signed.
 
-        Called from `_apply_updates` when a Pagos 360 validation transaction is signed and
-        the provider has `pagos36
-        0_force_adhesion` enabled. Uses `pagos360_child_amount`
-        (preserved at creation time by `_get_specific_create_values`) as the cobro amount,
-        propagates the sale/invoice links so downstream reconciliation keeps working, and
-        triggers `_charge_with_token` to actually charge the customer.
+        Called from `_apply_updates` when a Pagos 360 validation transaction is signed. Uses
+        `pagos360_child_amount` (preserved at creation time by `_get_specific_create_values`)
+        as the cobro amount, propagates the sale/invoice links so downstream reconciliation
+        keeps working, and triggers `_charge_with_token` to actually charge the customer.
+
+        The presence of `pagos360_child_amount` is what distinguishes a flipped online payment
+        (which must spawn the cobro) from a plain adhesion captured via the customer portal
+        (which only creates the token and has no amount to charge).
         """
         self.ensure_one()
         if self.provider_code != "pagos360":
@@ -572,8 +575,6 @@ class PaymentTransaction(models.Model):
         if self.source_transaction_id:
             return
         if not self.token_id:
-            return
-        if not self.provider_id.pagos360_force_adhesion:
             return
         if self.child_transaction_ids.filtered(lambda c: c.operation == "online_token"):
             return

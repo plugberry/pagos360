@@ -21,7 +21,7 @@
             </group>
             <field name="allow_tokenization" position="before">
                 <field name="pagos360_form_url" invisible="code != 'pagos360'"/>
-                <field name="pagos360_force_adhesion" invisible="code != 'pagos360'"/>
+                <field name="pagos360_adhesion_on_subscription" invisible="code != 'pagos360'"/>
             </field>
             <xpath expr="//page[@name='configuration']" position="after">
                 <page string="Fees and Due dates" name="fees_and_due_dates" invisible="code != 'pagos360'">
