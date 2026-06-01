@@ -73,9 +73,9 @@ class PaymentProvider(models.Model):
     def _pagos360_get_api_key(self):
         self.ensure_one()
         if self.state == "enabled":
-            return self.pagos360_api_key
+            return self.sudo().pagos360_api_key
         else:
-            return self.pagos360_test_api_key
+            return self.sudo().pagos360_test_api_key
 
     def _pagos360_make_request(self, endpoint, data=None, method="POST"):
         self.ensure_one()
