@@ -57,33 +57,6 @@ class TestAdhesion(TransactionCase):
         )
         self.assertNotIn("operation", res)
 
-    # --- _is_tokenization_required ----------------------------------------------------
-
-    def test_tokenization_not_required_when_adhesion_off(self):
-        """Flag off short-circuits to False even if super (subscription) would require it."""
-        self.provider.pagos360_adhesion_on_subscription = False
-        with patch(
-            "odoo.addons.payment.models.payment_provider.PaymentProvider._is_tokenization_required",
-            return_value=True,
-        ):
-            self.assertFalse(self.provider._is_tokenization_required())
-
-    def test_tokenization_delegates_to_super_when_adhesion_on(self):
-        """Flag on delegates to super (subscription modules can still force it)."""
-        self.provider.pagos360_adhesion_on_subscription = True
-        with patch(
-            "odoo.addons.payment.models.payment_provider.PaymentProvider._is_tokenization_required",
-            return_value=True,
-        ):
-            self.assertTrue(self.provider._is_tokenization_required())
-
-    def test_tokenization_multi_record_is_safe(self):
-        """The multi-record call from _get_compatible_providers must not raise."""
-        others = self.env["payment.provider"].search([("code", "!=", "pagos360")], limit=1)
-        providers = self.provider | others
-        # Should delegate to super (len(self) != 1) without touching pagos360 fields.
-        self.assertFalse(providers._is_tokenization_required())
-
     # --- _pagos360_spawn_child_charge -------------------------------------------------
 
     def _make_validation_tx(self, child_amount=500.0, with_token=True):

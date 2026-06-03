@@ -29,29 +29,6 @@ class PaymentProvider(models.Model):
     )
     pagos360_excluded_installments = fields.Text(help="[2,3,4,5]")
     pagos360_excluded_card_brands = fields.Text()
-    pagos360_adhesion_on_subscription = fields.Boolean(
-        string="Adhesion on subscription",
-        default=True,
-        help="When enabled (default), subscription sales are charged by capturing an adhesion "
-        "(auto-debit token) so renewals can be debited automatically: the checkout is routed to "
-        "the Pagos 360 adhesion form and, once signed, a child transaction charges the first "
-        "amount against the new token. When disabled, subscriptions are not forced to tokenize: "
-        "the first payment is taken as a one-shot payment and renewals must be handled manually. "
-        "One-shot sales are unaffected either way — they only become an adhesion when the customer "
-        "opts in via the native 'Save my payment details' checkbox.",
-    )
-
-    def _is_tokenization_required(self, **kwargs):
-        """Override of `payment` to let the provider opt out of forced tokenization.
-
-        For Pagos 360, when `pagos360_adhesion_on_subscription` is disabled, we do not force
-        tokenization even for subscription orders: the first payment is taken as a one-shot
-        payment and renewals are handled manually. Guarded to a single record so the multi-record
-        call from `_get_compatible_providers` keeps delegating to super.
-        """
-        if len(self) == 1 and self.code == "pagos360" and not self.pagos360_adhesion_on_subscription:
-            return False
-        return super()._is_tokenization_required(**kwargs)
 
     @api.constrains("pagos360_excluded_channels")
     def _validate_pagos360_excluded_channels(self):
