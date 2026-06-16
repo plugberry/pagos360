@@ -21,19 +21,20 @@ class PaymentTransaction(models.Model):
     pagos360_effective_payment_date = fields.Date()
     pagos360_child_amount = fields.Float(
         string="Pagos 360 Child Charge Amount",
-        help="Original transaction amount preserved when the operation is forced to "
-        "`validation` by `pagos360_force_adhesion`. Used as the amount of the child "
+        help="Original transaction amount preserved when the operation is converted to "
+        "`validation` (adhesion flow). Used as the amount of the child "
         "online_token transaction spawned after the adhesion is signed.",
     )
 
     @api.model
     def _get_specific_create_values(self, provider_code, values):
-        """Force adhesion-first flow when the provider has `pagos360_force_adhesion` enabled.
+        """Convert a direct/redirect payment into a validation (adhesion) transaction when needed.
 
-        Direct/redirect payments are converted into validation transactions so the customer
-        goes through the Pagos 360 adhesion form first. Once the adhesion is signed and a
-        token is created, `_pagos360_spawn_child_charge` fires the actual charge as a
-        child transaction against that token.
+        Trigger: ``tokenize=True`` with a configured adhesion form URL — the user requested to save
+        their payment method and the provider has the adhesion form configured.
+
+        Once the adhesion is signed and a token is created, ``_pagos360_spawn_child_charge``
+        fires the actual charge as a child transaction against that token.
         """
         res = super()._get_specific_create_values(provider_code, values)
         if provider_code != "pagos360":
@@ -41,7 +42,8 @@ class PaymentTransaction(models.Model):
         if values.get("operation") not in ("online_redirect", "online_direct"):
             return res
         provider = self.env["payment.provider"].browse(values.get("provider_id"))
-        if not provider.pagos360_force_adhesion:
+        force_by_tokenize = bool(values.get("tokenize") and provider.pagos360_form_url)
+        if not force_by_tokenize:
             return res
         res.update(
             {
@@ -556,12 +558,10 @@ class PaymentTransaction(models.Model):
     def _pagos360_spawn_child_charge(self):
         """Create and trigger a child charge transaction after an adhesion is signed.
 
-        Called from `_apply_updates` when a Pagos 360 validation transaction is signed and
-        the provider has `pagos36
-        0_force_adhesion` enabled. Uses `pagos360_child_amount`
-        (preserved at creation time by `_get_specific_create_values`) as the cobro amount,
-        propagates the sale/invoice links so downstream reconciliation keeps working, and
-        triggers `_charge_with_token` to actually charge the customer.
+        Called from `_apply_updates` when a Pagos 360 validation transaction is signed.
+        Uses `pagos360_child_amount` (preserved at creation time by `_get_specific_create_values`)
+        as the charge amount, propagates sale/invoice links so downstream reconciliation works,
+        and triggers `_charge_with_token` to actually charge the customer.
         """
         self.ensure_one()
         if self.provider_code != "pagos360":
@@ -571,8 +571,6 @@ class PaymentTransaction(models.Model):
         if self.source_transaction_id:
             return
         if not self.token_id:
-            return
-        if not self.provider_id.pagos360_force_adhesion:
             return
         if self.child_transaction_ids.filtered(lambda c: c.operation == "online_token"):
             return
