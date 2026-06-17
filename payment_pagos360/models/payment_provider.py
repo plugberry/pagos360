@@ -29,14 +29,14 @@ class PaymentProvider(models.Model):
     )
     pagos360_excluded_installments = fields.Text(help="[2,3,4,5]")
     pagos360_excluded_card_brands = fields.Text()
-    pagos360_force_adhesion = fields.Boolean(
-        string="Force adhesion",
-        help="If enabled, every transaction routed through this provider is converted into an "
-        "adhesion (token capture). Once the adhesion is signed, a child transaction is created "
-        "automatically to charge the original amount against the new token. Use this for use "
-        "cases where the priority is to secure the customer's adhesion (e.g. subscription "
-        "checkout) instead of a one-shot payment.",
-    )
+
+    @api.constrains("allow_tokenization", "pagos360_form_url")
+    def _check_pagos360_form_url_required(self):
+        for provider in self.filtered(lambda p: p.code == "pagos360" and p.state in ("enabled", "test")):
+            if provider.allow_tokenization and not provider.pagos360_form_url:
+                raise ValidationError(
+                    _("A Pagos 360 adhesion form URL is required when 'Allow Saving Payment Methods' is enabled.")
+                )
 
     @api.constrains("pagos360_excluded_channels")
     def _validate_pagos360_excluded_channels(self):

@@ -5,6 +5,7 @@
         <field name="name">Pagos360</field>
         <field name="code">pagos360</field>
         <field name="image" type="base64" file="payment_pagos360/static/img/pagos360logo.png"/>
+        <field name="support_tokenization">True</field>
     </record>
 
     <record id="payment_method_pagofacil" model="payment.method">
