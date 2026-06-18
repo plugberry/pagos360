@@ -171,7 +171,12 @@ class PaymentTransaction(models.Model):
             return self
 
         if entity_name in ["debit_request", "card_debit_request"]:
-            domain = [("provider_reference", "=", payload.get("id")), ("provider_code", "=", "pagos360")]
+            domain = [
+                "|",
+                ("provider_reference", "=", str(payload.get("id"))),
+                ("reference", "=", payload.get("external_reference")),
+                ("provider_code", "=", "pagos360"),
+            ]
         else:
             domain = [("reference", "=", payload.get("external_reference")), ("provider_code", "=", "pagos360")]
         if payload.get("entity_name") == "payment_request":
@@ -194,13 +199,7 @@ class PaymentTransaction(models.Model):
             return super()._extract_reference(provider_code, payment_data)
 
         payload = payment_data.get("payload", {})
-        entity_name = payment_data.get("entity_name")
-
-        if entity_name in ["debit_request", "card_debit_request"]:
-            # For debit requests, we search by provider_reference, not reference
-            return None  # Let _search_by_reference handle this case
-        else:
-            return payload.get("external_reference")
+        return payload.get("external_reference")
 
     def _extract_amount_data(self, payment_data):
         """Override of payment to extract the amount and currency from the payment data."""
