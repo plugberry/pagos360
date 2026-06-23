@@ -1,4 +1,5 @@
 API_URL = "https://api.pagos360.com"
+CARD_DEBIT_DAYS_DAYS = 2
 API_TEST_URL = "https://api.sandbox.pagos360.com"
 
 DEFAULT_PAYMENT_METHODS_CODES = [

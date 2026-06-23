@@ -27,15 +27,21 @@
             <xpath expr="//page[@name='configuration']" position="after">
                 <page string="Fees and Due dates" name="fees_and_due_dates" invisible="code != 'pagos360'">
                     <group name="fees_and_due_dates">
-                        <field name="validity_days"/>
-                        <field name="pagos360_excluded_channels" />
-                        <field name="pagos360_excluded_installments"/>
-                        <field name="pagos360_excluded_card_brands"/>
-                        <!-- <field name="second_validity_days"/>
-                        <label for="second_due_fees"/>
-                        <div>
-                            <field name="second_due_fees"/> %
-                        </div> -->
+                        <group string="Cupón de efectivo (Pago Fácil / Rapipago)">
+                            <field name="pagos360_coupon_validity_days"/>
+                        </group>
+                        <group string="Débito en tarjeta (TC)" invisible="not allow_tokenization">
+                            <field name="pagos360_cut_days"/>
+                        </group>
+                        <group string="Débito bancario (CBU)" invisible="not allow_tokenization">
+                            <field name="pagos360_debit_use_invoice_due" widget="boolean_toggle"/>
+                            <field name="pagos360_debit_execution_days"/>
+                        </group>
+                        <group string="Canales y restricciones">
+                            <field name="pagos360_excluded_channels"/>
+                            <field name="pagos360_excluded_installments"/>
+                            <field name="pagos360_excluded_card_brands"/>
+                        </group>
                     </group>
                 </page>
             </xpath>

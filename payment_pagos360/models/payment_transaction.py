@@ -1,6 +1,6 @@
 import logging
 import pprint
-from datetime import timedelta
+from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
 from odoo import _, api, fields, models
@@ -9,6 +9,7 @@ from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
 from odoo.tools.urls import urljoin
 
+from .. import const
 from ..controllers.main import Pagos360Controller
 
 _logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ class PaymentTransaction(models.Model):
 
     pagos360_adhesion_type = fields.Selection(related="token_id.pagos360_adhesion_type", store=True)
     pagos360_effective_payment_date = fields.Date()
+    pagos360_debit_execution_date = fields.Date(string="Fecha de débito al cliente", readonly=True)
     pagos360_child_amount = fields.Float(
         string="Pagos 360 Child Charge Amount",
         help="Original transaction amount preserved when the operation is converted to "
@@ -110,7 +112,7 @@ class PaymentTransaction(models.Model):
         base_url = self.provider_id.get_base_url()
         redirect_url = urljoin(base_url, Pagos360Controller._return_url)
 
-        first_due_date, first_total = self.get_first_due_values()
+        first_due_date, first_total = self.get_coupon_due_values()
         # second_due_date, second_total = self.get_second_due_values()
 
         res = {
@@ -140,10 +142,48 @@ class PaymentTransaction(models.Model):
             )
         return res
 
-    def get_first_due_values(self):
-        first_due_date = fields.Datetime.now() + timedelta(days=self.provider_id.validity_days)
-        first_total = self.amount
-        return first_due_date, first_total
+    def _pagos360_get_invoice_due_date(self):
+        """Retorna la invoice_date_due futura más próxima entre las facturas posted asociadas.
+        None si no hay facturas elegibles o todas tienen fecha de vencimiento pasada o igual a hoy."""
+        today = date.today()
+        invoices = self.invoice_ids.filtered(
+            lambda m: m.move_type in ("out_invoice", "out_refund")
+            and m.state == "posted"
+            and m.invoice_date_due
+            and m.invoice_date_due > today
+        )
+        if not invoices:
+            return None
+        return min(invoices.mapped("invoice_date_due"))
+
+    def get_coupon_due_values(self):
+        """Vencimiento del cupón de efectivo (payment-request)."""
+        due = fields.Datetime.now() + timedelta(days=self.provider_id.pagos360_coupon_validity_days)
+        return due, self.amount
+
+    def get_debit_due_date(self):
+        """Fecha de ejecución del débito CBU.
+
+        1. Calcula min_day = next_business_day(hoy, execution_days) — piso real de Pagos360.
+        2. Si toggle activo y hay factura futura:
+           - min_day >= invoice_due → devuelve min_day (el piso ya cubre o supera el vencimiento).
+           - min_day < invoice_due  → devuelve next_business_day(invoice_due - 1 día, days=1),
+             es decir el primer día hábil a partir del vencimiento de la factura.
+        3. Sin toggle o sin facturas elegibles: devuelve min_day.
+        """
+        provider = self.provider_id
+
+        if provider.pagos360_debit_use_invoice_due:
+            invoice_due = self._pagos360_get_invoice_due_date()
+            min_day_raw = self._pagos360_next_business_day(date.today(), days=3)
+            if invoice_due:
+                min_day = fields.Date.from_string(min_day_raw[:10])
+                if min_day >= invoice_due:
+                    return min_day_raw
+                return self._pagos360_next_business_day(invoice_due - timedelta(days=1), days=1)
+            return min_day_raw
+
+        return self._pagos360_next_business_day(date.today(), days=provider.pagos360_debit_execution_days)
 
     def get_second_due_values(self):
         second_due_date = fields.Datetime.now() + timedelta(days=self.provider_id.second_validity_days)
@@ -421,21 +461,29 @@ class PaymentTransaction(models.Model):
         return super()._send_payment_request()
 
     def _pagos360_card_debit_request(self):
-        operation_date = fields.Date.today()
-        cut_day = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.cut_day", "19"))
-        if operation_date.day > cut_day:
-            operation_date = operation_date + relativedelta(months=1)
+        today = fields.Date.today()
+        cut_days_raw = (self.provider_id.pagos360_cut_days or "19").split(",")
+        cut_days = sorted(int(d.strip()) for d in cut_days_raw if d.strip().isdigit())
+        if not cut_days:
+            cut_days = [19]
+        future_cuts = [c for c in cut_days if c >= today.day]
+        if future_cuts:
+            execution_date = today.replace(day=future_cuts[0])
+        else:
+            next_month = today + relativedelta(months=1)
+            execution_date = next_month.replace(day=cut_days[0])
         data = {
             "card_debit_request": {
                 "description": _("Payment %s") % self.company_id.display_name,
                 "amount": self.amount,
-                "month": operation_date.month,
-                "year": operation_date.year,
+                "month": execution_date.month,
+                "year": execution_date.year,
                 "card_adhesion_id": int(self.token_id.provider_ref),
             }
         }
         res = self.provider_id._pagos360_make_request("card-debit-request", data=data, method="POST")
         self.provider_reference = res.get("id")
+        self.pagos360_debit_execution_date = execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS)
         return res
 
     def _pagos360_next_business_day(self, due_date, days=3):
@@ -443,19 +491,19 @@ class PaymentTransaction(models.Model):
         return self.provider_id._pagos360_make_request("validator/next-business-day", data=data, method="POST")
 
     def _pagos360_debit_request(self):
-        first_due_date, first_total = self.get_first_due_values()
-        next_business_day = self._pagos360_next_business_day(first_due_date)
+        next_business_day = self.get_debit_due_date()
+        execution_date = fields.Date.from_string(next_business_day[:10])
         data = {
             "debit_request": {
                 "description": _("Payment %s") % self.company_id.display_name,
                 "first_total": self.amount,
-                # la fecha de vencimiento para cbu es un dia habil hay un sevicio para eso
-                "first_due_date": fields.Datetime.from_string(next_business_day[:10]).strftime("%d-%m-%Y"),
+                "first_due_date": execution_date.strftime("%d-%m-%Y"),
                 "adhesion_id": int(self.token_id.provider_ref),
             }
         }
         res = self.provider_id._pagos360_make_request("debit-request", data=data, method="POST")
         self.provider_reference = res.get("id")
+        self.pagos360_debit_execution_date = execution_date
         return res
 
     def get_pagos360_info(self, check_payment_state=True):
