@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-17 21:40+0000\n"
+"POT-Creation-Date: 2026-07-16 16:10+0000\n"
 "PO-Revision-Date: 2025-12-22 16:10+0000\n"
 "Last-Translator: carla spiaggi <sca@adhoc.inc>\n"
 "Language-Team: Spanish <https://translation.dev-adhoc.com/projects/"
@@ -44,6 +44,11 @@ msgstr "Api Key (PAGOS360)"
 #: model:ir.model.fields.selection,name:payment_pagos360.selection__payment_token__pagos360_adhesion_type__adhesion
 msgid "CBU Adhesion"
 msgstr "CBU Adherido"
+
+#. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
+msgid "Canales y restricciones"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.actions.server,name:payment_pagos360.action_pagos360_cancel_transaction
@@ -83,11 +88,71 @@ msgid "Credit & Debit Card (powered by Pagos360)"
 msgstr "Tarjeta de Crédito y Débito (powered by Pagos360)"
 
 #. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
+msgid "Cupón de efectivo (Pago Fácil / Rapipago)"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_debit_use_invoice_due
+msgid "Debitar al vencimiento de la factura (CBU)"
+msgstr "Debitar al vencimiento de la factura (CBU)"
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__display_name
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__display_name
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__display_name
 msgid "Display Name"
 msgstr ""
+
+#. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
+msgid "Débito bancario (CBU)"
+msgstr ""
+
+#. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
+msgid "Débito en tarjeta (TC)"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_cut_days
+msgid "Días de corte (débito en tarjeta)"
+msgstr "Días de corte (débito en tarjeta)"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_coupon_validity_days
+msgid "Días de validez del cupón (Pago Fácil / Rapipago)"
+msgstr "Días de validez del cupón (Pago Fácil / Rapipago)"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_cut_days
+msgid ""
+"Días del mes (separados por coma, entre 1 y 28) a partir de los cuales el "
+"débito en tarjeta se imputa al período siguiente. Ej: '10,20'. Reemplaza al "
+"parámetro de sistema 'pagos360.cut_day'."
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_debit_execution_days
+msgid ""
+"Días hábiles a esperar desde hoy para ejecutar el débito. Mínimo 3 "
+"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día "
+"hábil."
+msgstr ""
+"Días hábiles a esperar desde hoy para ejecutar el débito. Mínimo 3 "
+"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día "
+"hábil."
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_debit_execution_days
+msgid "Días para ejecutar el débito (CBU/TC)"
+msgstr "Días para ejecutar el débito (CBU/TC)"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_coupon_validity_days
+msgid "Días que el cliente final tiene para pagar el cupón antes de que venza."
+msgstr ""
+"Días que el cliente final tiene para pagar el cupón antes de que venza."
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
@@ -99,6 +164,11 @@ msgstr "Asegurar Webhook"
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "Error setting your webhooks."
 msgstr "Error al configurar sus webhooks."
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_debit_execution_date
+msgid "Fecha de débito al cliente"
+msgstr "Fecha de débito al cliente"
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
@@ -118,9 +188,32 @@ msgid "Imprima este codigo para abonar en la red de rapipago"
 msgstr "Imprima este código para abonar en la red de Rapipago"
 
 #. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid "La validez del cupón debe ser al menos 1 día."
+msgstr "La validez del cupón debe ser al menos 1 día."
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_form_url
 msgid "Link formulario debito automático"
 msgstr "Link formulario débito automático"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid ""
+"Los días de corte deben ser números entre 1 y 28 (válidos en cualquier mes)."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid ""
+"Los días de ejecución del débito deben ser al menos 3 (mínimo técnico de "
+"Pagos360)."
+msgstr ""
+"Los días de ejecución del débito deben ser al menos 3 (mínimo técnico de "
+"Pagos360)."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_transaction__pagos360_child_amount
@@ -182,11 +275,6 @@ msgid "Pagos360 Cbu Number"
 msgstr "Número de CBU Pagos360"
 
 #. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_debit_execution_date
-msgid "Fecha de débito al cliente"
-msgstr "Fecha de débito al cliente"
-
-#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_effective_payment_date
 msgid "Pagos360 Effective Payment Date"
 msgstr ""
@@ -243,6 +331,19 @@ msgid "Second Validity Days"
 msgstr "Segundos días de validez"
 
 #. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_debit_use_invoice_due
+msgid ""
+"Si está activado y la transacción tiene facturas con fecha de vencimiento, "
+"el débito CBU se ejecuta el día hábil siguiente a la fecha de vencimiento "
+"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el "
+"mínimo como fallback."
+msgstr ""
+"Si está activado y la transacción tiene facturas con fecha de vencimiento, "
+"el débito CBU se ejecuta el día hábil siguiente a la fecha de vencimiento "
+"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el "
+"mínimo como fallback."
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__second_due_fees
 msgid "Surcharge"
 msgstr "Recargo"
@@ -261,83 +362,6 @@ msgstr "El código técnico de este proveedor de pagos."
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "Usted será redirigido al sitio web de PAGOS360."
 msgstr "Usted será redirigido al sitio web de PAGOS360."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_coupon_validity_days
-msgid "Días de validez del cupón (Pago Fácil / Rapipago)"
-msgstr "Días de validez del cupón (Pago Fácil / Rapipago)"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_coupon_validity_days
-msgid "Días que el cliente final tiene para pagar el cupón antes de que venza."
-msgstr ""
-"Días que el cliente final tiene para pagar el cupón antes de que venza."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_cut_days
-msgid "Días de corte (débito en tarjeta)"
-msgstr "Días de corte (débito en tarjeta)"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_cut_days
-msgid ""
-"Días del mes (separados por coma) a partir de los cuales el débito en "
-"tarjeta se imputa al período siguiente. Ej: '10,20'. Reemplaza al parámetro "
-"de sistema 'pagos360.cut_day'."
-msgstr ""
-"Días del mes (separados por coma) a partir de los cuales el débito en "
-"tarjeta se imputa al período siguiente. Ej: '10,20'. Reemplaza al parámetro "
-"de sistema 'pagos360.cut_day'."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_debit_execution_days
-msgid "Días para ejecutar el débito (CBU/TC)"
-msgstr "Días para ejecutar el débito (CBU/TC)"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_debit_execution_days
-msgid ""
-"Días hábiles a esperar desde hoy para ejecutar el débito. Mínimo 3 "
-"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día "
-"hábil."
-msgstr ""
-"Días hábiles a esperar desde hoy para ejecutar el débito. Mínimo 3 "
-"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día "
-"hábil."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_debit_use_invoice_due
-msgid "Debitar al vencimiento de la factura (CBU)"
-msgstr "Debitar al vencimiento de la factura (CBU)"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_debit_use_invoice_due
-msgid ""
-"Si está activado y la transacción tiene facturas con fecha de vencimiento, "
-"el débito CBU se ejecuta el día hábil siguiente a la fecha de vencimiento "
-"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el "
-"mínimo como fallback."
-msgstr ""
-"Si está activado y la transacción tiene facturas con fecha de vencimiento, "
-"el débito CBU se ejecuta el día hábil siguiente a la fecha de vencimiento "
-"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el "
-"mínimo como fallback."
-
-#. module: payment_pagos360
-#. odoo-python
-#: code:addons/payment_pagos360/models/payment_provider.py:0
-msgid "La validez del cupón debe ser al menos 1 día."
-msgstr "La validez del cupón debe ser al menos 1 día."
-
-#. module: payment_pagos360
-#. odoo-python
-#: code:addons/payment_pagos360/models/payment_provider.py:0
-msgid ""
-"Los días de ejecución del débito deben ser al menos 3 (mínimo técnico de "
-"Pagos360)."
-msgstr ""
-"Los días de ejecución del débito deben ser al menos 3 (mínimo técnico de "
-"Pagos360)."
 
 #. module: payment_pagos360
 #. odoo-python
@@ -412,6 +436,15 @@ msgstr "hola@pagos360.com"
 #: code:addons/payment_pagos360/models/payment_token.py:0
 msgid "statefirst_total"
 msgstr ""
+
+#~ msgid ""
+#~ "Días del mes (separados por coma) a partir de los cuales el débito en "
+#~ "tarjeta se imputa al período siguiente. Ej: '10,20'. Reemplaza al "
+#~ "parámetro de sistema 'pagos360.cut_day'."
+#~ msgstr ""
+#~ "Días del mes (separados por coma) a partir de los cuales el débito en "
+#~ "tarjeta se imputa al período siguiente. Ej: '10,20'. Reemplaza al "
+#~ "parámetro de sistema 'pagos360.cut_day'."
 
 #~ msgid "Validity Days"
 #~ msgstr "Días de validez"
