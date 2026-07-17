@@ -2,17 +2,14 @@ API_URL = "https://api.pagos360.com"
 CARD_DEBIT_DAYS_DAYS = 2
 API_TEST_URL = "https://api.sandbox.pagos360.com"
 
-DEFAULT_PAYMENT_METHODS_CODES = [
-    # Primary payment methods.
-    "pagos360",
-    # Brand payment methods.
-    "visa",
-    "mastercard",
-    "ceconsud",
-    "naranja",
-    "nativa",
-    "tarjeta_mercadopago",
-]
+# Only the Pagos360 primary method is activated on enable. Card brands are NOT listed here:
+# the provider has no "card" payment method, so listing brands never activated anything, and
+# brand handling now lives in the pagos360.card.brand catalog used for coupon exclusions.
+DEFAULT_PAYMENT_METHODS_CODES = ["pagos360"]
+
+# Reference amount used only to enumerate the merchant's available brands/installments
+# through the "channel-installments" helper endpoint, which is amount-dependent.
+AVAILABLE_METHODS_REFERENCE_AMOUNT = 10000
 
 EVENT_TYPES = [
     "adhesion.canceled",

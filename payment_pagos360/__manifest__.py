@@ -1,10 +1,12 @@
 {
     "name": "Payment Provider: Pagos 360",
-    "version": "19.0.2.0.0",
+    "version": "19.0.2.1.0",
     "category": "Accounting/Payment Providers",
     "author": "Plugberry",
     "depends": ["account_payment"],
     "data": [
+        "security/ir.model.access.csv",
+        "data/pagos360_catalog_data.xml",
         "views/payment_provider_views.xml",
         "views/payment_pagos360_template.xml",
         "views/payment_transaction_views.xml",
