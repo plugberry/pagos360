@@ -6,7 +6,6 @@ from dateutil.relativedelta import relativedelta
 from odoo import _, api, fields, models
 from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import UserError
-from odoo.tools.safe_eval import safe_eval
 from odoo.tools.urls import urljoin
 
 from .. import const
@@ -130,16 +129,7 @@ class PaymentTransaction(models.Model):
                 "back_url_rejected": redirect_url,  # No requerido
             }
         }
-        if self.provider_id.pagos360_excluded_channels:
-            res["payment_request"].update({"excluded_channels": safe_eval(self.provider_id.pagos360_excluded_channels)})
-        if self.provider_id.pagos360_excluded_installments:
-            res["payment_request"].update(
-                {"excluded_installments": safe_eval(self.provider_id.pagos360_excluded_installments)}
-            )
-        if self.provider_id.pagos360_excluded_card_brands:
-            res["payment_request"].update(
-                {"excluded_card_brands": safe_eval(self.provider_id.pagos360_excluded_card_brands)}
-            )
+        res["payment_request"].update(self.provider_id._pagos360_get_coupon_exclusions())
         return res
 
     def _pagos360_get_invoice_due_date(self):

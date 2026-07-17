@@ -38,9 +38,18 @@
                             <field name="pagos360_debit_execution_days"/>
                         </group>
                         <group string="Canales y restricciones">
-                            <field name="pagos360_excluded_channels"/>
-                            <field name="pagos360_excluded_installments"/>
-                            <field name="pagos360_excluded_card_brands"/>
+                            <field name="pagos360_excluded_channel_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"/>
+                            <field name="pagos360_excludable_installment_domain" invisible="1"/>
+                            <field name="pagos360_excludable_card_brand_domain" invisible="1"/>
+                            <field name="pagos360_excluded_installment_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"
+                                   domain="pagos360_excludable_installment_domain"/>
+                            <field name="pagos360_excluded_card_brand_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"
+                                   domain="pagos360_excludable_card_brand_domain"/>
+                            <button string="Fetch available methods" type="object"
+                                    name="action_pagos360_sync_available_methods" class="btn-secondary" colspan="2"/>
                         </group>
                     </group>
                 </page>

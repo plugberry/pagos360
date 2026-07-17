@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pagos360_channel_user,pagos360.channel.user,model_pagos360_channel,base.group_user,1,0,0,0
+access_pagos360_channel_system,pagos360.channel.system,model_pagos360_channel,base.group_system,1,1,1,1
+access_pagos360_installment_user,pagos360.installment.user,model_pagos360_installment,base.group_user,1,0,0,0
+access_pagos360_installment_system,pagos360.installment.system,model_pagos360_installment,base.group_system,1,1,1,1
+access_pagos360_card_brand_user,pagos360.card.brand.user,model_pagos360_card_brand,base.group_user,1,0,0,0
+access_pagos360_card_brand_system,pagos360.card.brand.system,model_pagos360_card_brand,base.group_system,1,1,1,1

@@ -1,9 +1,8 @@
 import logging
 
 import requests
-from odoo import _, api, fields, models
+from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
-from odoo.tools.safe_eval import safe_eval
 from odoo.tools.urls import urljoin
 
 from .. import const
@@ -50,11 +49,64 @@ class PaymentProvider(models.Model):
     second_validity_days = fields.Integer(default=30)
     second_due_fees = fields.Float(string="Surcharge", default=10)
 
-    pagos360_excluded_channels = fields.Text(
-        help="['credit_card', 'credit_card_agro', 'debit_card', 'banelco_pmc', 'link_pagos', 'DEBIN', 'wire_transfer', 'non_banking', 'QR',]"
+    pagos360_excluded_channel_ids = fields.Many2many(
+        "pagos360.channel",
+        "pagos360_provider_excluded_channel_rel",
+        "provider_id",
+        "channel_id",
+        string="Excluded Channels",
+        help="Channels removed from the options offered to the payer on the Pagos360 coupon.",
     )
-    pagos360_excluded_installments = fields.Text(help="[2,3,4,5]")
-    pagos360_excluded_card_brands = fields.Text()
+    pagos360_excluded_installment_ids = fields.Many2many(
+        "pagos360.installment",
+        "pagos360_provider_excluded_installment_rel",
+        "provider_id",
+        "installment_id",
+        string="Excluded Installments",
+        help="Installments removed from the options offered to the payer on the Pagos360 coupon.",
+    )
+    pagos360_excluded_card_brand_ids = fields.Many2many(
+        "pagos360.card.brand",
+        "pagos360_provider_excl_brand_rel",
+        "provider_id",
+        "card_brand_id",
+        string="Excluded Card Brands",
+        help="Card brands removed from the options offered to the payer on the Pagos360 coupon.",
+    )
+
+    pagos360_available_installment_ids = fields.Many2many(
+        "pagos360.installment",
+        "pagos360_provider_available_installment_rel",
+        "provider_id",
+        "installment_id",
+        string="Available Installments",
+        help="Installments the merchant actually has enabled in Pagos360, fetched from the API. "
+        "Only these can be excluded.",
+    )
+    pagos360_available_card_brand_ids = fields.Many2many(
+        "pagos360.card.brand",
+        "pagos360_provider_avail_brand_rel",
+        "provider_id",
+        "card_brand_id",
+        string="Available Card Brands",
+        help="Card brands the merchant actually has enabled in Pagos360, fetched from the API. "
+        "Only these can be excluded.",
+    )
+
+    # Domains for the exclusion tag widgets, built server-side so referencing the invisible
+    # available m2m fields in the view domain is robust across the web client.
+    pagos360_excludable_installment_domain = fields.Char(compute="_compute_pagos360_excludable_domains")
+    pagos360_excludable_card_brand_domain = fields.Char(compute="_compute_pagos360_excludable_domains")
+
+    @api.depends("pagos360_available_installment_ids", "pagos360_available_card_brand_ids")
+    def _compute_pagos360_excludable_domains(self):
+        for provider in self:
+            provider.pagos360_excludable_installment_domain = repr(
+                [("id", "in", provider.pagos360_available_installment_ids.ids)]
+            )
+            provider.pagos360_excludable_card_brand_domain = repr(
+                [("id", "in", provider.pagos360_available_card_brand_ids.ids)]
+            )
 
     @api.constrains("pagos360_debit_execution_days", "pagos360_coupon_validity_days")
     def _check_pagos360_due_days(self):
@@ -84,30 +136,97 @@ class PaymentProvider(models.Model):
                     _("A Pagos 360 adhesion form URL is required when 'Allow Saving Payment Methods' is enabled.")
                 )
 
-    @api.constrains("pagos360_excluded_channels")
-    def _validate_pagos360_excluded_channels(self):
-        valid_values = [
-            "credit_card",
-            "credit_card_agro",
-            "debit_card",
-            "banelco_pmc",
-            "link_pagos",
-            "DEBIN",
-            "wire_transfer",
-            "non_banking",
-            "QR",
-        ]
-        for rec in self.filtered("pagos360_excluded_channels"):
-            vals = safe_eval(rec.pagos360_excluded_channels)
-            if not isinstance(vals, list) or any([x not in valid_values for x in vals]):
-                raise ValidationError(f"Los canales de pagos solo pueden ser {valid_values}")
+    def _pagos360_get_coupon_exclusions(self):
+        """Build the excluded_* payload entries for a payment request from the M2m config.
 
-    @api.constrains("pagos360_excluded_installments")
-    def _validate_pagos360_excluded_installments(self):
-        for rec in self.filtered("pagos360_excluded_installments"):
-            vals = safe_eval(rec.pagos360_excluded_installments)
-            if not isinstance(vals, list) or any([not isinstance(x, int) for x in vals]):
-                raise ValidationError("Las cuotas solo pueden ser numeros")
+        Only includes keys that have values, so an empty selection sends nothing.
+
+        :return: The exclusions to merge into the ``payment_request`` payload.
+        :rtype: dict
+        """
+        self.ensure_one()
+        exclusions = {}
+        if self.pagos360_excluded_channel_ids:
+            exclusions["excluded_channels"] = self.pagos360_excluded_channel_ids.mapped("code")
+        if self.pagos360_excluded_installment_ids:
+            exclusions["excluded_installments"] = self.pagos360_excluded_installment_ids.mapped("number")
+        # Pagos360 identifies card brands by a numeric code (e.g. "39"=Visa), not the brand name:
+        # sending anything else is silently ignored by the API. The code is only known after a
+        # sync, so brands without one (e.g. migrated but never re-synced) are skipped.
+        card_brand_codes = [c for c in self.pagos360_excluded_card_brand_ids.mapped("code") if c]
+        if card_brand_codes:
+            exclusions["excluded_card_brands"] = card_brand_codes
+        return exclusions
+
+    def _pagos360_fetch_available_methods(self):
+        """Fetch the brands/installments the merchant has enabled from the Pagos360 API.
+
+        Uses the amount-dependent ``channel-installments`` helper with a reference amount; we
+        only need the available installment numbers and the brand ``{name, code}`` pairs, not the
+        financial figures. Response shape: a list of ``{name, code, installments: [{installments, ...}]}``.
+
+        :return: (set of installment numbers, list of ``{'name', 'code'}`` brand dicts)
+        :rtype: tuple(set[int], list[dict])
+        """
+        self.ensure_one()
+        data = self._pagos360_make_request(
+            "/helper/channel-installments/%s" % const.AVAILABLE_METHODS_REFERENCE_AMOUNT,
+            method="GET",
+        )
+        installment_numbers = set()
+        brands = []
+        for brand in data or []:
+            name = brand.get("name")
+            if name:
+                brands.append({"name": name, "code": str(brand.get("code") or "").strip()})
+            for plan in brand.get("installments") or []:
+                number = plan.get("installments")
+                if number:
+                    installment_numbers.add(int(number))
+        return installment_numbers, brands
+
+    def action_pagos360_sync_available_methods(self):
+        """Refresh the available installments/brands from Pagos360 and prune stale exclusions."""
+        self.ensure_one()
+        installment_numbers, brands_data = self._pagos360_fetch_available_methods()
+
+        installments = self.env["pagos360.installment"]._get_or_create(installment_numbers)
+        brands = self.env["pagos360.card.brand"]._upsert(brands_data)
+
+        # Keep only the exclusions that are still available.
+        kept_installments = self.pagos360_excluded_installment_ids & installments
+        kept_brands = self.pagos360_excluded_card_brand_ids & brands
+        self.write(
+            {
+                "pagos360_available_installment_ids": [Command.set(installments.ids)],
+                "pagos360_available_card_brand_ids": [Command.set(brands.ids)],
+                "pagos360_excluded_installment_ids": [Command.set(kept_installments.ids)],
+                "pagos360_excluded_card_brand_ids": [Command.set(kept_brands.ids)],
+            }
+        )
+        _logger.info(
+            "Pagos360 provider %s: fetched %s available card brands and %s installment plans.",
+            self.id,
+            len(brands),
+            len(installments),
+        )
+        # 'next': act_window_close is what makes the web client reload the record after the
+        # notification closes — without it the toast shows but the available_*/excluded_* fields
+        # on screen stay stale. Same pattern as ensure_webhook() above.
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "message": _(
+                    "Se sincronizaron %(installments)s cuotas y %(brands)s marcas de tarjeta disponibles.",
+                    installments=len(installments),
+                    brands=len(brands),
+                ),
+                "sticky": False,
+                "type": "success",
+                "next": {"type": "ir.actions.act_window_close"},
+            },
+        }
 
     def _pagos360_get_api_url(self):
         self.ensure_one()

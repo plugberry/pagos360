@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- Payment channels supported by Pagos360 (codes from the provider API) -->
+    <record id="pagos360_channel_credit_card" model="pagos360.channel">
+        <field name="name">Tarjetas de crédito</field>
+        <field name="code">credit_card</field>
+    </record>
+    <record id="pagos360_channel_credit_card_agro" model="pagos360.channel">
+        <field name="name">Tarjetas Agro</field>
+        <field name="code">credit_card_agro</field>
+    </record>
+    <record id="pagos360_channel_debit_card" model="pagos360.channel">
+        <field name="name">Tarjetas de débito</field>
+        <field name="code">debit_card</field>
+    </record>
+    <record id="pagos360_channel_banelco_pmc" model="pagos360.channel">
+        <field name="name">PagoMisCuentas</field>
+        <field name="code">banelco_pmc</field>
+    </record>
+    <record id="pagos360_channel_link_pagos" model="pagos360.channel">
+        <field name="name">Link Pagos</field>
+        <field name="code">link_pagos</field>
+    </record>
+    <record id="pagos360_channel_debin" model="pagos360.channel">
+        <field name="name">DEBIN</field>
+        <field name="code">DEBIN</field>
+    </record>
+    <record id="pagos360_channel_wire_transfer" model="pagos360.channel">
+        <field name="name">Transferencia Bancaria</field>
+        <field name="code">wire_transfer</field>
+    </record>
+    <record id="pagos360_channel_non_banking" model="pagos360.channel">
+        <field name="name">Pago en efectivo</field>
+        <field name="code">non_banking</field>
+    </record>
+    <record id="pagos360_channel_qr" model="pagos360.channel">
+        <field name="name">QR</field>
+        <field name="code">QR</field>
+    </record>
+
+    <!-- Installments and card brands are NOT seeded: they are created/updated from the API on
+         "Fetch available methods" (installments by number, brands by name + numeric code). -->
+
+</odoo>
