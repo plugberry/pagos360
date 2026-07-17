@@ -152,9 +152,9 @@ class PaymentTransaction(models.Model):
         :param dict notification_data: The notification data sent by the provider
         :return: None
         """
-        super()._process_notification_data(notification_data)
+        res = super()._process_notification_data(notification_data)
         if self.provider_code != "pagos360":
-            return
+            return res
         entity_name = notification_data.get("entity_name")
         entity_id = notification_data.get("entity_id")
         if not entity_id:
