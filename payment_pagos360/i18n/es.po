@@ -9,15 +9,17 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 16:10+0000\n"
+"POT-Creation-Date: 2026-07-17 15:43+0000\n"
 "PO-Revision-Date: 2025-12-22 16:10+0000\n"
 "Last-Translator: carla spiaggi <sca@adhoc.inc>\n"
-"Language-Team: Spanish <https://translation.dev-adhoc.com/projects/pagos360-19-0/pagos360-19-0-payment_pagos360/es/>\n"
+"Language-Team: Spanish <https://translation.dev-adhoc.com/projects/"
+"pagos360-19-0/pagos360-19-0-payment_pagos360/es/>\n"
 "Language: es\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: \n"
-"Plural-Forms: nplurals=3; plural=(n == 1) ? 0 : ((n != 0 && n % 1000000 == 0) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n == 1) ? 0 : ((n != 0 && n % 1000000 == "
+"0) ? 1 : 2);\n"
 "X-Generator: Weblate 5.10.4\n"
 
 #. module: payment_pagos360
@@ -39,6 +41,16 @@ msgstr "Ante algún inconveniente al realizar su pago contactese a"
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_api_key
 msgid "Api Key (PAGOS360)"
 msgstr "Api Key (PAGOS360)"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_available_card_brand_ids
+msgid "Available Card Brands"
+msgstr "Marcas de tarjeta disponibles"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_available_installment_ids
+msgid "Available Installments"
+msgstr "Cuotas disponibles"
 
 #. module: payment_pagos360
 #: model:ir.model.fields.selection,name:payment_pagos360.selection__payment_token__pagos360_adhesion_type__adhesion
@@ -67,6 +79,33 @@ msgid "Card Adhesion"
 msgstr "Tarjeta adherida"
 
 #. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_card_brand_ids
+msgid ""
+"Card brands removed from the options offered to the payer on the Pagos360 "
+"coupon."
+msgstr ""
+"Marcas de tarjeta que se quitan de las opciones ofrecidas al pagador en el "
+"cupón de Pagos360."
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_available_card_brand_ids
+msgid ""
+"Card brands the merchant actually has enabled in Pagos360, fetched from the "
+"API. Only these can be excluded."
+msgstr ""
+"Marcas de tarjeta que el comercio tiene realmente habilitadas en Pagos360, "
+"traídas desde la API. Solo estas se pueden excluir."
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_channel_ids
+msgid ""
+"Channels removed from the options offered to the payer on the Pagos360 "
+"coupon."
+msgstr ""
+"Canales que se quitan de las opciones ofrecidas al pagador en el cupón de "
+"Pagos360."
+
+#. module: payment_pagos360
 #: model:ir.actions.server,name:payment_pagos360.action_info_from_pagos360
 msgid "Check in (PAGOS360)"
 msgstr "Check in (PAGOS360)"
@@ -85,6 +124,20 @@ msgid "Could not establish the connection to the API."
 msgstr "No se pudo establecer la conexión a la API."
 
 #. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__create_uid
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__create_uid
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__create_uid
+msgid "Created by"
+msgstr "Creado por"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__create_date
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__create_date
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__create_date
+msgid "Created on"
+msgstr "Creado el"
+
+#. module: payment_pagos360
 #: model:payment.provider,name:payment_pagos360.payment_provider_pagos360
 msgid "Credit & Debit Card (powered by Pagos360)"
 msgstr "Tarjeta de Crédito y Débito (powered by Pagos360)"
@@ -92,6 +145,11 @@ msgstr "Tarjeta de Crédito y Débito (powered by Pagos360)"
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
 msgid "Cupón de efectivo (Pago Fácil / Rapipago)"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_debin
+msgid "DEBIN"
 msgstr ""
 
 #. module: payment_pagos360
@@ -141,12 +199,12 @@ msgstr ""
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_debit_execution_days
 msgid ""
 "Días hábiles a esperar desde hoy para ejecutar el débito. Mínimo 3 "
-"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día"
-" hábil."
+"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día "
+"hábil."
 msgstr ""
 "Días hábiles a esperar desde hoy para ejecutar el débito. Mínimo 3 "
-"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día"
-" hábil."
+"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día "
+"hábil."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_debit_execution_days
@@ -155,8 +213,7 @@ msgstr "Días para ejecutar el débito (CBU/TC)"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_coupon_validity_days
-msgid ""
-"Días que el cliente final tiene para pagar el cupón antes de que venza."
+msgid "Días que el cliente final tiene para pagar el cupón antes de que venza."
 msgstr ""
 "Días que el cliente final tiene para pagar el cupón antes de que venza."
 
@@ -172,6 +229,21 @@ msgid "Error setting your webhooks."
 msgstr "Error al configurar sus webhooks."
 
 #. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_card_brand_ids
+msgid "Excluded Card Brands"
+msgstr "Marcas de tarjeta excluidas"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_channel_ids
+msgid "Excluded Channels"
+msgstr "Canales excluidos"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_installment_ids
+msgid "Excluded Installments"
+msgstr "Cuotas excluidas"
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_debit_execution_date
 msgid "Fecha de débito al cliente"
 msgstr "Fecha de débito al cliente"
@@ -180,6 +252,11 @@ msgstr "Fecha de débito al cliente"
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
 msgid "Fees and Due dates"
 msgstr "Tarifas y fechas de vencimiento"
+
+#. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
+msgid "Fetch available methods"
+msgstr "Traer métodos disponibles"
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__id
@@ -197,10 +274,47 @@ msgid "Imprima este codigo para abonar en la red de rapipago"
 msgstr "Imprima este código para abonar en la red de Rapipago"
 
 #. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_installment_ids
+msgid ""
+"Installments removed from the options offered to the payer on the Pagos360 "
+"coupon."
+msgstr ""
+"Cuotas que se quitan de las opciones ofrecidas al pagador en el cupón de "
+"Pagos360."
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_available_installment_ids
+msgid ""
+"Installments the merchant actually has enabled in Pagos360, fetched from the "
+"API. Only these can be excluded."
+msgstr ""
+"Cuotas que el comercio tiene realmente habilitadas en Pagos360, traídas "
+"desde la API. Solo estas se pueden excluir."
+
+#. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "La validez del cupón debe ser al menos 1 día."
 msgstr "La validez del cupón debe ser al menos 1 día."
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__write_uid
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__write_uid
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__write_uid
+msgid "Last Updated by"
+msgstr "Última actualización por"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__write_date
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__write_date
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__write_date
+msgid "Last Updated on"
+msgstr "Última actualización el"
+
+#. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_link_pagos
+msgid "Link Pagos"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_form_url
@@ -225,6 +339,29 @@ msgstr ""
 "Pagos360)."
 
 #. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__name
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__name
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__name
+msgid "Name"
+msgstr "Nombre"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__number
+msgid "Number"
+msgstr "Número"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_pagos360_card_brand__code
+msgid ""
+"Numeric brand code Pagos360 expects in the excluded_card_brands payload. "
+"Filled/updated from the API on each 'Fetch available methods'; the string "
+"code is ignored by the API."
+msgstr ""
+"Código numérico de marca que Pagos360 espera en el payload "
+"excluded_card_brands. Se completa/actualiza desde la API en cada 'Traer "
+"métodos disponibles'; el código de texto es ignorado por la API."
+
+#. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_transaction__pagos360_child_amount
 msgid ""
 "Original transaction amount preserved when the operation is converted to "
@@ -246,9 +383,19 @@ msgid "Pagar Mediante Rapipago"
 msgstr "Pagar Mediante Rapipago"
 
 #. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_non_banking
+msgid "Pago en efectivo"
+msgstr ""
+
+#. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_pagofacil
 msgid "PagoFacil"
 msgstr "PagoFacil"
+
+#. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_banelco_pmc
+msgid "PagoMisCuentas"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_child_amount
@@ -277,6 +424,11 @@ msgid "Pagos360 Card"
 msgstr "Tarjeta Pagos360"
 
 #. module: payment_pagos360
+#: model:ir.model,name:payment_pagos360.model_pagos360_card_brand
+msgid "Pagos360 Card Brand"
+msgstr "Marca de tarjeta de Pagos360"
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_card_number
 msgid "Pagos360 Card Number"
 msgstr "Número de tarjeta Pagos360"
@@ -292,9 +444,29 @@ msgid "Pagos360 Effective Payment Date"
 msgstr "Fecha de pago efectivo de Pagos360"
 
 #. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excludable_card_brand_domain
+msgid "Pagos360 Excludable Card Brand Domain"
+msgstr "Dominio de marcas de tarjeta excluibles de Pagos360"
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excludable_installment_domain
+msgid "Pagos360 Excludable Installment Domain"
+msgstr "Dominio de cuotas excluibles de Pagos360"
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_external_reference
 msgid "Pagos360 External Reference"
 msgstr "Referencia externa Pagos360"
+
+#. module: payment_pagos360
+#: model:ir.model,name:payment_pagos360.model_pagos360_installment
+msgid "Pagos360 Installment"
+msgstr "Cuota de Pagos360"
+
+#. module: payment_pagos360
+#: model:ir.model,name:payment_pagos360.model_pagos360_channel
+msgid "Pagos360 Payment Channel"
+msgstr "Canal de pago de Pagos360"
 
 #. module: payment_pagos360
 #. odoo-python
@@ -318,9 +490,22 @@ msgid "Payment Transaction"
 msgstr "Transacción de pago"
 
 #. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_qr
+msgid "QR"
+msgstr ""
+
+#. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_rapipago
 msgid "RapiPago"
 msgstr "RapiPago"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid ""
+"Se sincronizaron %(installments)s cuotas y %(brands)s marcas de tarjeta "
+"disponibles."
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__second_validity_days
@@ -332,13 +517,13 @@ msgstr "Segundos días de validez"
 msgid ""
 "Si está activado y la transacción tiene facturas con fecha de vencimiento, "
 "el débito CBU se ejecuta el día hábil siguiente a la fecha de vencimiento "
-"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el"
-" mínimo como fallback."
+"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el "
+"mínimo como fallback."
 msgstr ""
 "Si está activado y la transacción tiene facturas con fecha de vencimiento, "
 "el débito CBU se ejecuta el día hábil siguiente a la fecha de vencimiento "
-"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el"
-" mínimo como fallback."
+"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el "
+"mínimo como fallback."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__second_due_fees
@@ -346,14 +531,60 @@ msgid "Surcharge"
 msgstr "Recargo"
 
 #. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_credit_card_agro
+msgid "Tarjetas Agro"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_credit_card
+msgid "Tarjetas de crédito"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_debit_card
+msgid "Tarjetas de débito"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_pagos360_channel__code
+msgid "Technical code sent to the Pagos360 API (e.g. 'banelco_pmc')."
+msgstr "Código técnico enviado a la API de Pagos360 (ej. 'banelco_pmc')."
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_test_api_key
 msgid "Test Api Key (PAGOS360)"
 msgstr "Test Api Key (PAGOS360)"
 
 #. module: payment_pagos360
+#: model:ir.model.constraint,message:payment_pagos360.constraint_pagos360_card_brand_name_uniq
+msgid "The card brand name must be unique."
+msgstr "El nombre de la marca de tarjeta debe ser único."
+
+#. module: payment_pagos360
+#: model:ir.model.constraint,message:payment_pagos360.constraint_pagos360_channel_code_uniq
+msgid "The channel code must be unique."
+msgstr "El código del canal debe ser único."
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/pagos360_installment.py:0
+msgid "The installment must be a positive number."
+msgstr "La cuota debe ser un número positivo."
+
+#. module: payment_pagos360
+#: model:ir.model.constraint,message:payment_pagos360.constraint_pagos360_installment_number_uniq
+msgid "The installment number must be unique."
+msgstr "El número de cuota debe ser único."
+
+#. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__code
 msgid "The technical code of this payment provider."
 msgstr "El código técnico de este proveedor de pagos."
+
+#. module: payment_pagos360
+#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_wire_transfer
+msgid "Transferencia Bancaria"
+msgstr ""
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
@@ -364,8 +595,8 @@ msgstr "Usted será redirigido al sitio web de PAGOS360."
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid ""
-"You have active tokens in PAGOS360. You must archive them before. IMPORTANT:"
-" This action will also disable tokens in PAGOS360."
+"You have active tokens in PAGOS360. You must archive them before. IMPORTANT: "
+"This action will also disable tokens in PAGOS360."
 msgstr ""
 "Tiene tokens activos en PAGOS360. Debe archivarlos antes. IMPORTANTE: Esta "
 "acción también deshabilitará los tokens en PAGOS360."
@@ -374,8 +605,8 @@ msgstr ""
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid ""
-"You must set a Test API Key for PAGOS360 before setting the provider in test"
-" mode."
+"You must set a Test API Key for PAGOS360 before setting the provider in test "
+"mode."
 msgstr ""
 "Debe configurar una Test API Key para PAGOS360 antes de poner el proveedor "
 "en modo de prueba."
@@ -428,234 +659,4 @@ msgstr "hola@pagos360.com"
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_token.py:0
 msgid "statefirst_total"
-msgstr ""
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_available_card_brand_ids
-msgid "Available Card Brands"
-msgstr "Marcas de tarjeta disponibles"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_available_installment_ids
-msgid "Available Installments"
-msgstr "Cuotas disponibles"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_card_brand_ids
-msgid ""
-"Card brands removed from the options offered to the payer on the Pagos360 "
-"coupon."
-msgstr ""
-"Marcas de tarjeta que se quitan de las opciones ofrecidas al pagador en el "
-"cupón de Pagos360."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_available_card_brand_ids
-msgid ""
-"Card brands the merchant actually has enabled in Pagos360, fetched from the "
-"API. Only these can be excluded."
-msgstr ""
-"Marcas de tarjeta que el comercio tiene realmente habilitadas en Pagos360, "
-"traídas desde la API. Solo estas se pueden excluir."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_channel_ids
-msgid ""
-"Channels removed from the options offered to the payer on the Pagos360 "
-"coupon."
-msgstr ""
-"Canales que se quitan de las opciones ofrecidas al pagador en el cupón de "
-"Pagos360."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__create_uid
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__create_uid
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__create_uid
-msgid "Created by"
-msgstr "Creado por"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__create_date
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__create_date
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__create_date
-msgid "Created on"
-msgstr "Creado el"
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_debin
-msgid "DEBIN"
-msgstr ""
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_card_brand_ids
-msgid "Excluded Card Brands"
-msgstr "Marcas de tarjeta excluidas"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_channel_ids
-msgid "Excluded Channels"
-msgstr "Canales excluidos"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excluded_installment_ids
-msgid "Excluded Installments"
-msgstr "Cuotas excluidas"
-
-#. module: payment_pagos360
-#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
-msgid "Fetch available methods"
-msgstr "Traer métodos disponibles"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_excluded_installment_ids
-msgid ""
-"Installments removed from the options offered to the payer on the Pagos360 "
-"coupon."
-msgstr ""
-"Cuotas que se quitan de las opciones ofrecidas al pagador en el cupón de "
-"Pagos360."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_available_installment_ids
-msgid ""
-"Installments the merchant actually has enabled in Pagos360, fetched from the"
-" API. Only these can be excluded."
-msgstr ""
-"Cuotas que el comercio tiene realmente habilitadas en Pagos360, traídas "
-"desde la API. Solo estas se pueden excluir."
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__write_uid
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__write_uid
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__write_uid
-msgid "Last Updated by"
-msgstr "Última actualización por"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__write_date
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__write_date
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__write_date
-msgid "Last Updated on"
-msgstr "Última actualización el"
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_link_pagos
-msgid "Link Pagos"
-msgstr ""
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__name
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_channel__name
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__name
-msgid "Name"
-msgstr "Nombre"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__number
-msgid "Number"
-msgstr "Número"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_pagos360_card_brand__code
-msgid ""
-"Numeric brand code Pagos360 expects in the excluded_card_brands payload. "
-"Filled/updated from the API on each 'Fetch available methods'; the string "
-"code is ignored by the API."
-msgstr ""
-"Código numérico de marca que Pagos360 espera en el payload "
-"excluded_card_brands. Se completa/actualiza desde la API en cada 'Traer "
-"métodos disponibles'; el código de texto es ignorado por la API."
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_non_banking
-msgid "Pago en efectivo"
-msgstr ""
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_banelco_pmc
-msgid "PagoMisCuentas"
-msgstr ""
-
-#. module: payment_pagos360
-#: model:ir.model,name:payment_pagos360.model_pagos360_card_brand
-msgid "Pagos360 Card Brand"
-msgstr "Marca de tarjeta de Pagos360"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excludable_card_brand_domain
-msgid "Pagos360 Excludable Card Brand Domain"
-msgstr "Dominio de marcas de tarjeta excluibles de Pagos360"
-
-#. module: payment_pagos360
-#: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_excludable_installment_domain
-msgid "Pagos360 Excludable Installment Domain"
-msgstr "Dominio de cuotas excluibles de Pagos360"
-
-#. module: payment_pagos360
-#: model:ir.model,name:payment_pagos360.model_pagos360_installment
-msgid "Pagos360 Installment"
-msgstr "Cuota de Pagos360"
-
-#. module: payment_pagos360
-#: model:ir.model,name:payment_pagos360.model_pagos360_channel
-msgid "Pagos360 Payment Channel"
-msgstr "Canal de pago de Pagos360"
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_qr
-msgid "QR"
-msgstr ""
-
-#. module: payment_pagos360
-#. odoo-python
-#: code:addons/payment_pagos360/models/payment_provider.py:0
-msgid ""
-"Se sincronizaron %(installments)s cuotas y %(brands)s marcas de tarjeta "
-"disponibles."
-msgstr ""
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_credit_card_agro
-msgid "Tarjetas Agro"
-msgstr ""
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_credit_card
-msgid "Tarjetas de crédito"
-msgstr ""
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_debit_card
-msgid "Tarjetas de débito"
-msgstr ""
-
-#. module: payment_pagos360
-#: model:ir.model.fields,help:payment_pagos360.field_pagos360_channel__code
-msgid "Technical code sent to the Pagos360 API (e.g. 'banelco_pmc')."
-msgstr "Código técnico enviado a la API de Pagos360 (ej. 'banelco_pmc')."
-
-#. module: payment_pagos360
-#: model:ir.model.constraint,message:payment_pagos360.constraint_pagos360_card_brand_name_uniq
-msgid "The card brand name must be unique."
-msgstr "El nombre de la marca de tarjeta debe ser único."
-
-#. module: payment_pagos360
-#: model:ir.model.constraint,message:payment_pagos360.constraint_pagos360_channel_code_uniq
-msgid "The channel code must be unique."
-msgstr "El código del canal debe ser único."
-
-#. module: payment_pagos360
-#. odoo-python
-#: code:addons/payment_pagos360/models/pagos360_installment.py:0
-msgid "The installment must be a positive number."
-msgstr "La cuota debe ser un número positivo."
-
-#. module: payment_pagos360
-#: model:ir.model.constraint,message:payment_pagos360.constraint_pagos360_installment_number_uniq
-msgid "The installment number must be unique."
-msgstr "El número de cuota debe ser único."
-
-#. module: payment_pagos360
-#: model:pagos360.channel,name:payment_pagos360.pagos360_channel_wire_transfer
-msgid "Transferencia Bancaria"
 msgstr ""
