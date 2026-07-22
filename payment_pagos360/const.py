@@ -1,5 +1,6 @@
 API_URL = "https://api.pagos360.com"
 CARD_DEBIT_DAYS_DAYS = 2
+DEBIT_ENTITY_BY_ADHESION_TYPE = {"card_adhesion": "card_debit_request", "adhesion": "debit_request"}
 API_TEST_URL = "https://api.sandbox.pagos360.com"
 
 # Only the Pagos360 primary method is activated on enable. Card brands are NOT listed here:

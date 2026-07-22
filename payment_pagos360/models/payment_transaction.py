@@ -222,12 +222,26 @@ class PaymentTransaction(models.Model):
         :return: The transaction, if found.
         :rtype: recordset of `payment.transaction`
         """
+        payload = payment_data.get("payload", {})
+        entity_name = payment_data.get("entity_name")
+
+        # A debit notification may carry the adhesion's external_reference, so the debit id
+        # must be matched before the core lookup by reference finds the adhesion instead.
+        # Adhesions are excluded: older notifications wrote the debit id on them.
+        if provider_code == "pagos360" and entity_name in ["debit_request", "card_debit_request"]:
+            tx = self.search(
+                [
+                    ("provider_reference", "=", str(payload.get("id"))),
+                    ("provider_code", "=", "pagos360"),
+                    ("operation", "!=", "validation"),
+                ]
+            )
+            if tx:
+                return tx
+
         tx = super()._search_by_reference(provider_code, payment_data)
         if provider_code != "pagos360" or tx:
             return tx
-
-        payload = payment_data.get("payload", {})
-        entity_name = payment_data.get("entity_name")
 
         if not entity_name:
             _logger.warning("PAGOS360: Received data with missing entity name.")
@@ -312,7 +326,11 @@ class PaymentTransaction(models.Model):
             return
 
         self.provider_reference = entity_id
-        paid_at = self._pagos360_get_paid_at_from_request(entity_name, entity_id)
+        # Prefer the paid_at already present in the received payload (debits carry it in
+        # request_result); only hit the API as a fallback for entities that don't.
+        paid_at = self._pagos360_extract_paid_at(payment_data.get("payload")) or (
+            self._pagos360_get_paid_at_from_request(entity_name, entity_id)
+        )
         if paid_at:
             self.pagos360_effective_payment_date = paid_at[:10]
         payment_status = payment_data.get("type")
@@ -388,6 +406,8 @@ class PaymentTransaction(models.Model):
             "payment_request": f"/payment-request?id={entity_id}",
             "card_adhesion": f"/card-adhesion/{entity_id}",
             "adhesion": f"/adhesion/{entity_id}",
+            "card_debit_request": f"/card-debit-request?id={entity_id}",
+            "debit_request": f"/debit-request?id={entity_id}",
         }
         endpoint = endpoint_by_entity.get(entity_name)
         if not endpoint:
@@ -496,7 +516,8 @@ class PaymentTransaction(models.Model):
                 )
             self.env.cr.commit()  # pylint: disable=invalid-commit
             if req:
-                self._process(self.provider_code, self.simulate_webhook(self.token_id.pagos360_adhesion_type, req))
+                entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE[self.token_id.pagos360_adhesion_type]
+                self._process(self.provider_code, self.simulate_webhook(entity_name, req))
                 self.env.cr.commit()  # pylint: disable=invalid-commit
         return super()._send_payment_request()
 
