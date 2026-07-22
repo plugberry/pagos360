@@ -62,9 +62,9 @@ class TestSendPaymentRequest(TransactionCase):
             self._send(tx)
 
     def test_each_adhesion_type_is_processed_once(self):
-        for adhesion_type in ["card_adhesion", "adhesion"]:
+        for adhesion_type, entity_name in [("card_adhesion", "card_debit_request"), ("adhesion", "debit_request")]:
             with self.subTest(adhesion_type=adhesion_type):
                 tx = self._make_tx(f"{REFERENCE}/{adhesion_type}", adhesion_type)
                 process = self._send(tx)
                 self.assertEqual(process.call_count, 1)
-                self.assertEqual(process.call_args.args[1]["entity_name"], adhesion_type)
+                self.assertEqual(process.call_args.args[1]["entity_name"], entity_name)
