@@ -1,4 +1,5 @@
 import logging
+import pprint
 
 import requests
 from odoo import Command, _, api, fields, models
@@ -265,7 +266,20 @@ class PaymentProvider(models.Model):
                     error_title=_("Could not establish the connection to the API."), error_ref=response_text
                 )
             )
-        return response.json()
+        result = response.json()
+        # [#69090 Paso 0] Instrumentación temporal: volcar la respuesta COMPLETA de cada llamada
+        # a la API para auditar qué claves-fecha expone Pagos360 (execution/settlement/accreditation)
+        # en debit-request, card-debit-request, payment-request, adhesion y card-adhesion.
+        # El endpoint identifica la entidad. Greppable por "PAGOS360 AUDIT". Remover tras fijar
+        # las tuplas de claves del cómputo de fechas estimadas.
+        _logger.info(
+            "PAGOS360 AUDIT %s %s\nrequest payload:\n%s\nfull response:\n%s",
+            method,
+            endpoint,
+            pprint.pformat(data),
+            pprint.pformat(result),
+        )
+        return result
 
     @api.depends("pagos360_api_key", "pagos360_test_api_key")
     def ensure_webhook(self):
