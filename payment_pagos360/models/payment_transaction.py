@@ -19,6 +19,17 @@ class PaymentTransaction(models.Model):
 
     pagos360_adhesion_type = fields.Selection(related="token_id.pagos360_adhesion_type", store=True)
     pagos360_effective_payment_date = fields.Date()
+    pagos360_estimated_charge_date = fields.Date(
+        string="Fecha estimada de cobro",
+        readonly=True,
+        help="Fecha probable en que Pagos360 le cobra al cliente final. "
+        "CBU: fecha de ejecución que enviamos. TC: la que devuelva Pagos360.",
+    )
+    pagos360_estimated_settlement_date = fields.Date(
+        string="Fecha estimada de acreditación",
+        readonly=True,
+        help="Fecha probable de acreditación en cuenta propia, según el dato que provea Pagos360.",
+    )
 
     def _create_payment(self, **extra_create_values):
         self.ensure_one()
@@ -162,6 +173,7 @@ class PaymentTransaction(models.Model):
 
         self.provider_reference = entity_id
         paid_at = self._pagos360_extract_paid_at(notification_data.get("payload", {}).get("request_result", {}))
+        self._pagos360_compute_estimated_dates(entity_name, notification_data.get("payload", {}))
         payment_status = notification_data.get("type")
 
         try:
@@ -269,6 +281,55 @@ class PaymentTransaction(models.Model):
                     return paid_at
 
         return False
+
+    def _pagos360_get_collected_result(self, entity_data):
+        """Return the ``collected`` result dict of a Pagos360 payload, or ``{}``.
+
+        Pagos360 lista cada intento de cobro en ``request_result`` -incluidos los ``rejected``,
+        que igual traen ``available_at``/``paid_at``-; sólo el result ``collected`` refleja el
+        cobro y la acreditación reales. Por eso no se puede tomar "el primero que aparezca".
+        """
+        if not isinstance(entity_data, dict):
+            return {}
+        results = entity_data.get("request_result") or []
+        if isinstance(results, dict):
+            results = [results]
+        for result in results:
+            if isinstance(result, dict) and str(result.get("type", "")).startswith("collected_"):
+                return result
+        return {}
+
+    def _pagos360_compute_estimated_dates(self, entity_name, entity_data):
+        """Set the estimated charge/settlement dates from a Pagos360 entity payload.
+
+        Principio rector (#69090 §3.3): usar sólo datos reales de Pagos360; si no hay dato
+        real, dejar el campo vacío (nunca inventar un plazo). Prioridad:
+
+        - Acreditación (settlement): ``available_at`` del result ``collected`` -uniforme en
+          payment_request, debit_request y card_debit_request-.
+        - Cobro CBU (debit_request): ``first_due_date`` -la fecha de ejecución que enviamos y
+          que la API ecoa; único caso determinístico-.
+        - Cobro TC (card_debit_request) y cupón (payment_request): la API no expone la fecha
+          pre-facto, así que queda vacío hasta el cobro.
+        - ``paid_at`` real sobreescribe la estimación de cobro (US3 - híbrido).
+
+        Sólo escribe cuando encuentra un dato real, así que nunca pisa un valor previo con vacío.
+        """
+        if not isinstance(entity_data, dict):
+            return
+        collected = self._pagos360_get_collected_result(entity_data)
+
+        settlement = collected.get("available_at")
+        if settlement:
+            self.pagos360_estimated_settlement_date = settlement[:10]
+
+        charge = False
+        if entity_name == "debit_request":
+            charge = entity_data.get("first_due_date")
+        if collected.get("paid_at"):  # US3: el dato real reemplaza la estimación
+            charge = collected["paid_at"]
+        if charge:
+            self.pagos360_estimated_charge_date = charge[:10]
 
     def _pagos360_tokenize_from_feedback_data(self, notification_data):
         """Create a new token based on the feedback data.
