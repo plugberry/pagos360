@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="payment_transaction_form_pagos360" model="ir.ui.view">
+        <field name="name">payment.transaction.form.pagos360</field>
+        <field name="model">payment.transaction</field>
+        <field name="inherit_id" ref="payment.payment_transaction_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='provider_reference']" position="after">
+                <field name="pagos360_effective_payment_date"
+                       invisible="provider_code != 'pagos360'"/>
+                <field name="pagos360_estimated_charge_date"
+                       invisible="provider_code != 'pagos360'"/>
+                <field name="pagos360_estimated_settlement_date"
+                       invisible="provider_code != 'pagos360'"/>
+            </xpath>
+        </field>
+    </record>
+
     <record id="action_info_from_pagos360" model="ir.actions.server">
         <field name="name">Check in (PAGOS360)</field>
         <field name="model_id" ref="payment.model_payment_transaction"/>
