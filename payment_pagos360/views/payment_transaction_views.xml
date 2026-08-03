@@ -14,6 +14,10 @@
                        invisible="provider_code != 'pagos360' or not pagos360_debit_execution_date"/>
                 <field name="pagos360_child_amount"
                        invisible="provider_code != 'pagos360' or not pagos360_child_amount"/>
+                <field name="pagos360_estimated_charge_date"
+                       invisible="provider_code != 'pagos360'"/>
+                <field name="pagos360_estimated_settlement_date"
+                       invisible="provider_code != 'pagos360'"/>
             </xpath>
         </field>
     </record>
