@@ -466,4 +466,57 @@ class PaymentTransaction(models.Model):
         if not data:
             _logger.warning("No data recieved")
             return
+<<<<<<< 48756c32b1cd669b9e50d2b118a3692f266f37d3
         return {"entity_name": entity_name, "entity_id": data["id"], "type": data["state"], "payload": data}
+||||||| 581adaf89a6f0195e9e305b0bb19975c715e42d0
+        return {'entity_name': entity_name, 'entity_id': data['id'], 'type': data['state'], 'payload': data}
+
+    def _pagos360_sync_draft_transactions(self):
+        """Cron: query Pagos360 for draft transactions created in the last 15 days and update their state."""
+        since = fields.Datetime.now() - timedelta(days=15)
+        transactions = self.search([
+            ('provider_code', '=', 'pagos360'),
+            ('state', '=', 'draft'),
+            ('create_date', '>=', since),
+        ])
+        _logger.info("Pagos360 sync cron: found %d draft transaction(s) to check.", len(transactions))
+        for tx in transactions:
+            try:
+                tx._pagos360_fetch_and_process_transaction()
+                self.env.cr.commit()
+            except Exception as e:
+                _logger.warning(
+                    "Pagos360 sync cron: error processing transaction %s (id=%s): %s",
+                    tx.reference, tx.id, e,
+                )
+                self.env.cr.rollback()
+
+=======
+        return {'entity_name': entity_name, 'entity_id': data['id'], 'type': data['state'], 'payload': data}
+
+    def _pagos360_sync_draft_transactions(self):
+        """Cron: query Pagos360 for unresolved transactions created in the last 15 days.
+
+        `pending` is polled along with `draft`: a transaction that got `transfer_created`
+        (or that was sent as a debit) leaves `draft`, and a webhook that never arrives
+        would strand it with nothing left to check on it.
+        """
+        since = fields.Datetime.now() - timedelta(days=15)
+        transactions = self.search([
+            ('provider_code', '=', 'pagos360'),
+            ('state', 'in', ['draft', 'pending']),
+            ('create_date', '>=', since),
+        ])
+        _logger.info("Pagos360 sync cron: found %d unresolved transaction(s) to check.", len(transactions))
+        for tx in transactions:
+            try:
+                tx._pagos360_fetch_and_process_transaction()
+                self.env.cr.commit()
+            except Exception as e:
+                _logger.warning(
+                    "Pagos360 sync cron: error processing transaction %s (id=%s): %s",
+                    tx.reference, tx.id, e,
+                )
+                self.env.cr.rollback()
+
+>>>>>>> 1060a6afa58173bff5edff747a923d87a753890a
