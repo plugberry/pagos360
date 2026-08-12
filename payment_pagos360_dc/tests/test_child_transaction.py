@@ -22,14 +22,14 @@ class TestChildTransaction(TransactionCase):
         cls.partner = cls.env["res.partner"].create({"name": "Cliente Test"})
         cls.payment_method = cls.env.ref("payment.payment_method_unknown")
 
-    def _create_tx(self, operation, tokenize, amount=1500.0, provider=None):
+    def _create_tx(self, operation, tokenize, amount=1500.0, provider=None, currency=None):
         provider = provider or self.provider
         values = {
             "provider_id": provider.id,
             "payment_method_id": self.payment_method.id,
             "partner_id": self.partner.id,
             "amount": amount,
-            "currency_id": self.env.company.currency_id.id,
+            "currency_id": (currency or self.env.company.currency_id).id,
             "operation": operation,
             "tokenize": tokenize,
         }
@@ -43,6 +43,23 @@ class TestChildTransaction(TransactionCase):
         self.assertEqual(tx.amount, 0.0)
         self.assertEqual(tx.pagos360_child_amount, 1500.0)
         self.assertEqual(tx.currency_id, self.provider._get_validation_currency())
+
+    # -- La hija debe cobrar en la moneda original del checkout, no en la de validación --
+
+    def test_child_keeps_original_checkout_currency(self):
+        other_currency = (
+            self.env["res.currency"]
+            .with_context(active_test=False)
+            .search([("id", "!=", self.env.company.currency_id.id)], limit=1)
+        )
+        other_currency.active = True
+        tx = self._create_tx("online_redirect", True, amount=1500.0, currency=other_currency)
+        self.assertEqual(tx.pagos360_child_currency_id, other_currency)
+        self.assertNotEqual(tx.currency_id, other_currency)
+        with patch.object(type(tx), "_send_payment_request", autospec=True):
+            self._sign_validation_tx(tx)
+            child = tx.child_transaction_ids.filtered(lambda c: c.operation == "online_token")
+            self.assertEqual(child.currency_id, other_currency)
 
     # -- Escenario 2: checkout sin tokenización --
 

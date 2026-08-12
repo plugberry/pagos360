@@ -32,8 +32,12 @@ Al instalar el módulo, un ``post_init_hook`` migra automáticamente, para los
 providers existentes con ``code == "pagos360"``:
 
 - El valor que el cliente ya tenía en ``validity_days`` → ``pagos360_coupon_validity_days``
-  (preserva la configuración existente, no pisa con el default).
-- El parámetro de sistema ``pagos360.cut_day`` (si existía) → ``pagos360_cut_days``.
+  (preserva la configuración existente, no pisa con el default salvo que el valor legado
+  ya no sea válido para el campo nuevo — ej. ``0``, rechazado por el mínimo de 1 día —
+  en cuyo caso cae al default y se loguea un warning para reconfigurar a mano).
+- El parámetro de sistema ``pagos360.cut_day`` (si existía) → ``pagos360_cut_days``
+  (mismo criterio: si el valor legado no entra en el rango 1-28 del campo nuevo, cae al
+  default ``"19"`` con warning).
 
 El campo ``validity_days`` del módulo base no se toca ni se elimina.
 
