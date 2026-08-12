@@ -2,6 +2,9 @@ from datetime import date, timedelta
 from unittest.mock import patch
 
 from odoo.addons.account.tests.common import AccountTestInvoicingCommon
+from odoo.addons.payment_pagos360.models.payment_provider import (
+    PaymentProvider as Pagos360Provider,
+)
 from odoo.addons.payment_pagos360.models.payment_transaction import (
     PaymentTransaction as Pagos360Transaction,
 )
@@ -53,7 +56,12 @@ class TestValidityDays(AccountTestInvoicingCommon):
                 "invoice_line_ids": [(0, 0, {"name": "test line", "price_unit": 1000.0, "quantity": 1})],
             }
         )
-        invoice.action_post()
+        # Si `pagos360_invoice_barcode` está instalado (bundle completo de runbot), postear
+        # una factura con un provider Pagos360 no deshabilitado dispara una request HTTP real
+        # a la API de Pagos360 (`_create_pagos360_barcode` -> `_pagos360_make_request`). Se
+        # mockea para no depender de red en tests y no chocar con el bloqueo de requests.
+        with patch.object(Pagos360Provider, "_pagos360_make_request", return_value={}):
+            invoice.action_post()
         # `invoice_date_due` es compute+store (depende de `needed_terms`, que depende del
         # payment term del partner) — action_post() la recalcula y pisa cualquier valor
         # seteado antes. Se fuerza después para no depender del payment term de `partner_a`.
@@ -136,6 +144,10 @@ class TestValidityDays(AccountTestInvoicingCommon):
     def test_cut_days_constraint_rejects_invalid_day(self):
         with self.assertRaises(Exception):
             self.provider.pagos360_cut_days = "10,29"
+
+    def test_cut_days_constraint_rejects_empty_value(self):
+        with self.assertRaises(Exception):
+            self.provider.pagos360_cut_days = ""
 
     # -- pagos360_debit_execution_days: constraint de mínimo 3 --
 

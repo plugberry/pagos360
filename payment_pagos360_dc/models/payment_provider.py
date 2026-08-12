@@ -44,7 +44,9 @@ class PaymentProvider(models.Model):
 
     @api.constrains("pagos360_cut_days")
     def _check_pagos360_cut_days(self):
-        for rec in self.filtered(lambda p: p.code == "pagos360" and p.pagos360_cut_days):
+        for rec in self.filtered(lambda p: p.code == "pagos360"):
+            if not rec.pagos360_cut_days:
+                raise ValidationError(_("Los días de corte no pueden quedar vacíos."))
             for raw_day in rec.pagos360_cut_days.split(","):
                 day = raw_day.strip()
                 if not day.isdigit() or not (1 <= int(day) <= 28):
