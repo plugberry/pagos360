@@ -47,3 +47,37 @@ class TestPostInitHook(TransactionCase):
         post_init_hook(self.env)
 
         self.assertEqual(provider.pagos360_cut_days, "25")
+
+    def test_hook_falls_back_to_default_cut_days_when_legacy_value_out_of_range(self):
+        provider = self.env["payment.provider"].create(
+            {
+                "name": "Pagos360 Legacy",
+                "code": "pagos360",
+                "state": "test",
+                "pagos360_test_api_key": "test-key",
+            }
+        )
+        # El código viejo no tenía tope superior (comparaba `day > cut_day`), así que un
+        # cliente pudo haber configurado legítimamente un corte de fin de mes.
+        self.env["ir.config_parameter"].sudo().set_param("pagos360.cut_day", "30")
+
+        post_init_hook(self.env)
+
+        self.assertEqual(provider.pagos360_cut_days, "19")
+
+    def test_hook_falls_back_to_default_coupon_validity_when_legacy_value_is_zero(self):
+        provider = self.env["payment.provider"].create(
+            {
+                "name": "Pagos360 Legacy",
+                "code": "pagos360",
+                "state": "test",
+                "pagos360_test_api_key": "test-key",
+                "validity_days": 0,
+            }
+        )
+
+        post_init_hook(self.env)
+
+        # `pagos360_coupon_validity_days` exige mínimo 1 día — 0 no es un valor migrable,
+        # cae al default de fábrica en vez de dejar el provider en un estado inválido.
+        self.assertEqual(provider.pagos360_coupon_validity_days, 15)

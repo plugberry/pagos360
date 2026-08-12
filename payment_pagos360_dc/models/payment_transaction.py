@@ -17,6 +17,13 @@ class PaymentTransaction(models.Model):
         "(flujo de adhesión). Se usa como importe de la transacción hija `online_token` "
         "que se dispara una vez firmada la adhesión.",
     )
+    pagos360_child_currency_id = fields.Many2one(
+        "res.currency",
+        string="Moneda de la transacción hija (Pagos360)",
+        help="Moneda original de la transacción antes de convertirla a `validation` (que "
+        "pasa a usar la moneda de validación del provider). Se usa junto con "
+        "`pagos360_child_amount` para que la transacción hija cobre en la moneda correcta.",
+    )
     pagos360_debit_execution_date = fields.Date(
         string="Fecha de débito al cliente",
         readonly=True,
@@ -41,6 +48,7 @@ class PaymentTransaction(models.Model):
                 "operation": "validation",
                 "tokenize": True,
                 "pagos360_child_amount": values.get("amount", 0.0),
+                "pagos360_child_currency_id": values.get("currency_id"),
                 "amount": 0.0,
                 "currency_id": provider._get_validation_currency().id,
             }
@@ -53,9 +61,6 @@ class PaymentTransaction(models.Model):
             return
         if self.operation == "validation" and notification_data.get("type") == "signed" and self.token_id:
             self._pagos360_spawn_child_charge()
-
-    def pagos360_spawn_child_charge(self):
-        self._pagos360_spawn_child_charge()
 
     def _pagos360_spawn_child_charge(self):
         """Create and trigger the child charge transaction of a signed Pagos360 adhesion.
@@ -95,6 +100,7 @@ class PaymentTransaction(models.Model):
             amount,
             operation="online_token",
             token_id=self.token_id.id,
+            currency_id=(self.pagos360_child_currency_id or self.currency_id).id,
             **self._pagos360_get_child_link_vals(),
         )
         _logger.info(
@@ -184,6 +190,17 @@ class PaymentTransaction(models.Model):
         return payload
 
     def _pagos360_debit_request(self):
+        """Full reimplementation, not a `super()` override with a tweak.
+
+        The base method (`payment_pagos360`) computes `first_due_date` inline from
+        `self.get_first_due_values()` + `self._pagos360_next_business_day()` — there's no
+        separate overridable hook for "the due date" alone. Routing through
+        `get_first_due_values()` here would mean this module keeps calling it, which
+        the validity-days design explicitly rules out (that method's semantics —
+        cash-coupon validity — no longer apply to CBU debit due dates once this module
+        is installed). If `payment_pagos360._pagos360_debit_request` changes its request
+        payload shape, mirror the change here too.
+        """
         execution_date_raw = self.get_debit_due_date()
         execution_date = fields.Date.from_string(execution_date_raw[:10])
         self.pagos360_debit_execution_date = execution_date
@@ -198,6 +215,11 @@ class PaymentTransaction(models.Model):
         return self.provider_id._pagos360_make_request("debit-request", data=data, method="POST")
 
     def _pagos360_card_debit_request(self):
+        """Full reimplementation — see `_pagos360_debit_request` for why `super()` isn't used.
+
+        If `payment_pagos360._pagos360_card_debit_request` changes its request payload
+        shape, mirror the change here too.
+        """
         today = fields.Date.today()
         cut_days = sorted(int(d.strip()) for d in self.provider_id.pagos360_cut_days.split(","))
         future_cuts = [d for d in cut_days if d >= today.day]
