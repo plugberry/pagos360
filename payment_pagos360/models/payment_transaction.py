@@ -290,7 +290,7 @@ class PaymentTransaction(models.Model):
                 "debin_created",
             ]:
                 if self.state != "pending":
-                    self._set_pending()
+                    self._set_pending(extra_allowed_states=("error",))
             elif payment_status == "signed" and self.operation == "validation":
                 self._set_done()
                 if not self.token_id and self.tokenize:
