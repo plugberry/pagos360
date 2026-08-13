@@ -24,7 +24,7 @@ def post_init_hook(env):
                 # validity_days` exige mínimo 1 día (0 días de validez de cupón no tiene
                 # sentido funcional). Se preserva el default de fábrica (15).
                 provider.pagos360_coupon_validity_days = 15
-                _logger.warning(
+                _logger.info(
                     "PAGOS360: el valor legado de validity_days (%s) no es válido para "
                     "pagos360_coupon_validity_days (mínimo 1 día) en el provider %s; se "
                     "usa el default. Reconfigurar manualmente si corresponde.",
@@ -38,7 +38,7 @@ def post_init_hook(env):
                     # El parámetro legado no tenía tope superior (permitía 29-31); el
                     # constraint nuevo exige 1-28. Se preserva el default "19".
                     provider.pagos360_cut_days = "19"
-                    _logger.warning(
+                    _logger.info(
                         "PAGOS360: el valor legado de pagos360.cut_day (%s) está fuera del "
                         "rango 1-28 soportado por pagos360_cut_days en el provider %s; se "
                         "usa el default. Reconfigurar manualmente si corresponde.",
