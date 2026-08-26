@@ -236,11 +236,15 @@ class PaymentTransaction(models.Model):
         if self.provider_code != "pagos360":
             return super()._extract_amount_data(payment_data)
         payload = payment_data.get("payload", {})
-        if not any(payload.get(key) for key in ("request_result", "first_total", "amount")):
-            # Webhook notifications carry ids and the external reference only, and the API
-            # returns no request_result until the request is paid. Opt out of the amount
-            # check instead of reporting 0: core would set the transaction to error and
-            # return before _apply_updates, leaving the notification unprocessed.
+        # Each flow below reads the amount from its own key, so the opt out has to be decided
+        # with that same key: webhook notifications carry ids and the external reference only,
+        # and the API returns no request_result until the payment request is paid. Opting out
+        # instead of reporting 0 matters because core would set the transaction to error and
+        # return before _apply_updates, leaving the notification unprocessed.
+        amount_key = {"adhesion": "first_total", "card_adhesion": "amount"}.get(
+            self.pagos360_adhesion_type, "request_result"
+        )
+        if not payload.get(amount_key):
             return None
         amount = 0.0
         if not self.pagos360_adhesion_type:

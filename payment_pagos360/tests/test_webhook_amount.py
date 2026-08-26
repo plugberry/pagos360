@@ -99,6 +99,54 @@ class TestWebhookAmount(TransactionCase):
         data = self._webhook_data("pending", payload={"request_result": []})
         self.assertIsNone(tx._extract_amount_data(data))
 
+    # --- the payment request keys are read per flow (ticket 125617) --------------------
+
+    def test_amount_data_opts_out_on_pending_payment_request_with_first_total(self):
+        """A pending payment request always carries first_total, and no request_result until
+        it is paid. Reading the amount from first_total instead would report an amount for a
+        request nobody paid yet, and deciding the opt out with it left the amount at 0."""
+        tx = self._make_tx()
+        data = self._webhook_data("pending", payload={"first_total": PAID_AMOUNT})
+        self.assertIsNone(tx._extract_amount_data(data))
+
+    def test_pending_payment_request_with_first_total_is_set_pending(self):
+        tx = self._make_tx()
+        self._process(self._webhook_data("pending", payload={"first_total": PAID_AMOUNT}))
+        self.assertEqual(tx.state, "pending")
+        self.assertFalse(tx.state_message)
+
+    def test_paid_payment_request_is_validated_against_request_result(self):
+        """The coupon can be paid on the second due date, for an amount that no longer
+        matches first_total: the payment is what request_result reports."""
+        tx = self._make_tx()
+        data = self._webhook_data(
+            "paid",
+            payload={"first_total": PAID_AMOUNT - 1000, "request_result": [{"amount": PAID_AMOUNT}]},
+        )
+        self.assertEqual(tx._extract_amount_data(data)["amount"], PAID_AMOUNT)
+        self._process(data)
+        self.assertEqual(tx.state, "done")
+
+    def test_amount_data_of_adhesion_is_read_from_first_total(self):
+        tx = self._make_tx(token=self._make_token("adhesion"))
+        data = self._webhook_data("paid", entity_name="debit_request", payload={"first_total": PAID_AMOUNT})
+        self.assertEqual(tx._extract_amount_data(data)["amount"], PAID_AMOUNT)
+
+    def test_amount_data_of_adhesion_opts_out_without_first_total(self):
+        tx = self._make_tx(token=self._make_token("adhesion"))
+        data = self._webhook_data("pending", entity_name="debit_request")
+        self.assertIsNone(tx._extract_amount_data(data))
+
+    def test_amount_data_of_card_adhesion_is_read_from_amount(self):
+        tx = self._make_tx(token=self._make_token("card_adhesion"))
+        data = self._webhook_data("paid", entity_name="card_debit_request", payload={"amount": PAID_AMOUNT})
+        self.assertEqual(tx._extract_amount_data(data)["amount"], PAID_AMOUNT)
+
+    def test_amount_data_of_card_adhesion_opts_out_without_amount(self):
+        tx = self._make_tx(token=self._make_token("card_adhesion"))
+        data = self._webhook_data("pending", entity_name="card_debit_request", payload={"first_total": PAID_AMOUNT})
+        self.assertIsNone(tx._extract_amount_data(data))
+
     # --- payloads that do carry an amount: the check still runs ------------------------
 
     def test_matching_amount_is_still_validated(self):
