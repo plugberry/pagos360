@@ -1,4 +1,6 @@
 import logging
+import secrets
+from urllib.parse import urlsplit
 
 import requests
 from odoo import Command, _, api, fields, models
@@ -18,6 +20,13 @@ class PaymentProvider(models.Model):
     pagos360_api_key = fields.Char(string="Api Key (PAGOS360)", groups="base.group_system")
     pagos360_test_api_key = fields.Char(string="Test Api Key (PAGOS360)", groups="base.group_system")
     pagos360_form_url = fields.Char("Link formulario debito automático")
+    pagos360_webhook_token = fields.Char(
+        string="Webhook Token (PAGOS360)",
+        groups="base.group_system",
+        copy=False,
+        help="Secret appended to the webhook URL registered in Pagos360 so the endpoint can "
+        "reject requests that don't carry it. Generated automatically by 'Ensure Webhook'.",
+    )
 
     pagos360_debit_execution_days = fields.Integer(
         string="Días para ejecutar el débito (CBU/TC)",
@@ -269,8 +278,10 @@ class PaymentProvider(models.Model):
 
     @api.depends("pagos360_api_key", "pagos360_test_api_key")
     def ensure_webhook(self):
+        if not self.pagos360_webhook_token:
+            self.pagos360_webhook_token = secrets.token_urlsafe(32)
         base_url = self.get_base_url().replace("http:", "https:")
-        webhook_url = urljoin(base_url, Pagos360Controller._webhook_url)
+        webhook_url = urljoin(base_url, Pagos360Controller._webhook_url) + "?token=" + self.pagos360_webhook_token
 
         message = _("Your Pagos360 Webhook was already set up.")
         notification_type = "success"
@@ -300,6 +311,7 @@ class PaymentProvider(models.Model):
         # Por lo que buscamos si existe el webhook para nuestra url
         # Si existe comparamos los eventos seteados
         # En caso de haber dierencias hacemos un DELETE del webhook para retornar False y que luego se envien de nuevo los webhook
+        webhook_path = urlsplit(webhook_url).path
         webhooks = self._pagos360_make_request("/webhook", method="GET")
         if webhooks and webhooks.get("data"):
             data = webhooks.get("data")
@@ -311,6 +323,11 @@ class PaymentProvider(models.Model):
                         return True
                     else:
                         self._pagos360_make_request("/webhook/%s" % webhook_id, method="DELETE")
+                elif urlsplit(webhook.get("url") or "").path == webhook_path:
+                    # Same endpoint registered under a stale URL — e.g. from before the webhook
+                    # token existed, or with a token that got regenerated. Drop it, or Pagos360
+                    # keeps double-posting every event to a URL we now always reject (task 72382).
+                    self._pagos360_make_request("/webhook/%s" % webhook.get("id"), method="DELETE")
         return False
 
     def handled_event_types(self):

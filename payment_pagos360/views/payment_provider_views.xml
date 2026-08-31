@@ -17,6 +17,7 @@
                            invisible="state != 'enabled'"/>
                     <field name="pagos360_test_api_key" password="True"
                            invisible="state != 'test'"/>
+                    <field name="pagos360_webhook_token" password="True" readonly="1" groups="base.group_no_one"/>
                 </group>
             </group>
             <field name="allow_tokenization" position="after">

@@ -117,14 +117,25 @@ class Pagos360Controller(portal.CustomerPortal):
         return request.redirect("/payment/status")
 
     @http.route(f"{_webhook_url}", type="http", auth="public", methods=["POST"], csrf=False)
-    def pagos360_webhook(self, **data):
+    def pagos360_webhook(self, token=None, **data):
         """Process the notification data sent by Pagos360 to the webhook.
 
-        :param str reference: The transaction reference embedded in the webhook URL.
+        :param str token: The secret registered for this URL by `ensure_webhook`, used to reject
+                           requests that don't know it.
         :param dict _kwargs: The extra query parameters.
         :return: An empty string to acknowledge the notification.
         :rtype: str
         """
+        provider_sudo = (
+            request.env["payment.provider"]
+            .sudo()
+            .search([("code", "=", "pagos360"), ("pagos360_webhook_token", "=", token)], limit=1)
+            if token
+            else request.env["payment.provider"]
+        )
+        if not provider_sudo:
+            _logger.warning("Pagos360 webhook: rejected notification with invalid or missing token")
+            return Response("success", status=200)  # Acknowledge without leaking information
         try:
             data = request.get_json_data()
             _logger.info("Notification received from Pagos360 with data: %s", data)
