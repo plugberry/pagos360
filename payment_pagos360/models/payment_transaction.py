@@ -328,10 +328,19 @@ class PaymentTransaction(models.Model):
                 return
             if self.token_id.pagos360_adhesion_type == "card_adhesion":
                 req = self._pagos360_card_debit_request()
-                self._process_notification_data(self.simulate_webhook("card_adhesion", req))
             if self.token_id.pagos360_adhesion_type == "adhesion":
                 req = self._pagos360_debit_request()
             self.env.cr.commit()  # pylint: disable=invalid-commit
+            provider_reference = (req or {}).get("id")
+            if provider_reference:
+                # Once Pagos360 answered, the debit is registered and will be executed against the
+                # customer, so its id has to survive whatever fails next. It cannot be written from
+                # this cursor: the post-process cron may have updated the row while we were waiting
+                # for the request, and under REPEATABLE READ any write from here would then raise
+                # SerializationFailure and the rollback would discard the reference. A separate
+                # transaction takes a fresh snapshot and its commit outlives our own rollback.
+                with self.env.registry.cursor() as pr_cr:
+                    self.with_env(self.env(cr=pr_cr)).provider_reference = provider_reference
             if req:
                 self._process_notification_data(self.simulate_webhook(self.token_id.pagos360_adhesion_type, req))
                 self.env.cr.commit()  # pylint: disable=invalid-commit
