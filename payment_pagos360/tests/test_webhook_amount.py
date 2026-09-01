@@ -61,9 +61,10 @@ class TestWebhookAmount(TransactionCase):
         }
 
     def _process(self, data):
-        # _apply_updates falls back to the API for the effective payment date; keep the
-        # test offline. The module already tolerates a failing call.
-        with patch.object(type(self.provider), "_pagos360_make_request", return_value={}):
+        # Mirror the notification's own type back as the API's reported state, offline.
+        with patch.object(
+            type(self.provider), "_pagos360_make_request", return_value={"data": [{"state": data.get("type")}]}
+        ):
             return self.env["payment.transaction"].sudo()._process("pagos360", data)
 
     # --- webhook payloads without an amount -------------------------------------------

@@ -282,7 +282,18 @@ class PaymentTransaction(models.Model):
         paid_at = self._pagos360_get_paid_at_from_request(entity_name, entity_id)
         if paid_at:
             self.pagos360_effective_payment_date = paid_at[:10]
-        payment_status = payment_data.get("type")
+
+        # The webhook's own `type` isn't proof of the real state; reconfirm against the API.
+        if payment_data.get("from_webhook") and entity_name == "payment_request":
+            payment_status = self._pagos360_reconfirm_payment_request_state(entity_id)
+            if not payment_status:
+                _logger.warning(
+                    "PAGOS360: could not reconfirm payment_request %s from the API; ignoring webhook notification.",
+                    entity_id,
+                )
+                return
+        else:
+            payment_status = payment_data.get("type")
         try:
             if payment_status in [
                 "pending",
@@ -369,6 +380,16 @@ class PaymentTransaction(models.Model):
             return False
 
         return self._pagos360_extract_paid_at(entity_data)
+
+    def _pagos360_reconfirm_payment_request_state(self, entity_id):
+        """Fetch the payment_request entity from Pagos360 and return its real ``state``."""
+        try:
+            response = self.provider_id._pagos360_make_request(f"/payment-request?id={entity_id}", method="GET")
+        except Exception as e:
+            _logger.warning("Could not reconfirm payment_request %s from the Pagos360 API: %s", entity_id, e)
+            return False
+        data = response.get("data") or []
+        return data[0].get("state") if data else False
 
     def _pagos360_extract_paid_at(self, data):
         """Recursively look for a paid_at key in Pagos360 response payloads."""
