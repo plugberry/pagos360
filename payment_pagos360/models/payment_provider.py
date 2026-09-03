@@ -12,6 +12,15 @@ from ..controllers.main import Pagos360Controller
 
 _logger = logging.getLogger(__name__)
 
+# Where to read back each entity a notification can refer to.
+PAGOS360_ENTITY_ENDPOINTS = {
+    "payment_request": "/payment-request?id=%s",
+    "adhesion": "/adhesion/%s",
+    "card_adhesion": "/card-adhesion/%s",
+    "debit_request": "/debit-request?id=%s",
+    "card_debit_request": "/card-debit-request?id=%s",
+}
+
 
 class PaymentProvider(models.Model):
     _inherit = "payment.provider"
@@ -275,6 +284,18 @@ class PaymentProvider(models.Model):
                 )
             )
         return response.json()
+
+    def _pagos360_get_entity(self, entity_name, entity_id):
+        """Return an entity as Pagos360 has it now, or False if we can't read it back."""
+        self.ensure_one()
+        endpoint = PAGOS360_ENTITY_ENDPOINTS.get(entity_name)
+        if not endpoint:
+            return False
+        response = self._pagos360_make_request(endpoint % entity_id, method="GET")
+        # Query endpoints wrap the entity in `data`; path ones return it plain.
+        if "data" in response:
+            return response["data"][0] if response["data"] else False
+        return response
 
     @api.depends("pagos360_api_key", "pagos360_test_api_key")
     def ensure_webhook(self):

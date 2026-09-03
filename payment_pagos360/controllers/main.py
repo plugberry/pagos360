@@ -142,8 +142,15 @@ class Pagos360Controller(portal.CustomerPortal):
             if data and data.get("payload") == WEBHOOK_TEST_PAYLOAD:
                 _logger.warning("Webhook URL is OK")
                 return Response("success", status=200)
-            data["from_webhook"] = True
-            request.env["payment.transaction"].sudo()._process("pagos360", data)
+            entity_name = data.get("entity_name")
+            # Process what Pagos360 says the entity is now, not what the notification claims.
+            # If we can't read it back, skip: the next notification or the cron will catch up.
+            entity = provider_sudo._pagos360_get_entity(entity_name, data.get("entity_id"))
+            if not entity:
+                _logger.warning("Pagos360 webhook: could not read back %s, ignoring notification", entity_name)
+                return Response("success", status=200)
+            tx_sudo = request.env["payment.transaction"].sudo()
+            tx_sudo._process("pagos360", tx_sudo.simulate_webhook(entity_name, entity))
         except ValidationError:  # Acknowledge the notification to avoid getting spammed
             _logger.exception("unable to handle the notification data; skipping to acknowledge")
         return Response("success", status=200)  # Acknowledge the notification
