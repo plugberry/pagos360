@@ -266,7 +266,8 @@ class PaymentTransaction(models.Model):
             domain.append(["pagos360_adhesion_type", "=", False])
         tx = self.search(domain)
         if not tx:
-            _logger.warning("Pagos360: No transaction found matching reference %s.", payment_data.get("ref"))
+            # Info, not warning: expected when another module still has to create the tx (e.g. invoice barcode).
+            _logger.info("Pagos360: No transaction found matching reference %s.", payment_data.get("ref"))
         return tx
 
     @api.model
@@ -290,10 +291,9 @@ class PaymentTransaction(models.Model):
             return super()._extract_amount_data(payment_data)
         payload = payment_data.get("payload", {})
         # Each flow below reads the amount from its own key, so the opt out has to be decided
-        # with that same key: webhook notifications carry ids and the external reference only,
-        # and the API returns no request_result until the payment request is paid. Opting out
-        # instead of reporting 0 matters because core would set the transaction to error and
-        # return before _apply_updates, leaving the notification unprocessed.
+        # with that same key: the API returns no request_result until the request is paid.
+        # Opting out instead of reporting 0 matters because core would set the transaction to
+        # error and return before _apply_updates, leaving the notification unprocessed.
         amount_key = {"adhesion": "first_total", "card_adhesion": "amount"}.get(
             self.pagos360_adhesion_type, "request_result"
         )
@@ -332,11 +332,8 @@ class PaymentTransaction(models.Model):
             return
 
         self.provider_reference = entity_id
-        # Prefer the paid_at already present in the received payload (debits carry it in
-        # request_result); only hit the API as a fallback for entities that don't.
-        paid_at = self._pagos360_extract_paid_at(payment_data.get("payload")) or (
-            self._pagos360_get_paid_at_from_request(entity_name, entity_id)
-        )
+        # The payload is always the entity as the API returned it, so no extra request.
+        paid_at = self._pagos360_extract_paid_at(payment_data.get("payload"))
         if paid_at:
             self.pagos360_effective_payment_date = paid_at[:10]
         payment_status = payment_data.get("type")
@@ -405,29 +402,6 @@ class PaymentTransaction(models.Model):
                 - Mensaje de Error": {e}<br/>
             """
             self._set_error("PAGOS360: " + message)
-
-    def _pagos360_get_paid_at_from_request(self, entity_name, entity_id):
-        """Fetch entity info from Pagos360 and extract the first available paid_at value."""
-        endpoint_by_entity = {
-            "payment_request": f"/payment-request?id={entity_id}",
-            "card_adhesion": f"/card-adhesion/{entity_id}",
-            "adhesion": f"/adhesion/{entity_id}",
-            "card_debit_request": f"/card-debit-request?id={entity_id}",
-            "debit_request": f"/debit-request?id={entity_id}",
-        }
-        endpoint = endpoint_by_entity.get(entity_name)
-        if not endpoint:
-            return False
-
-        try:
-            entity_data = self.provider_id._pagos360_make_request(endpoint, method="GET")
-        except Exception as e:
-            _logger.warning(
-                "Could not fetch paid_at from Pagos360 API for entity %s (%s): %s", entity_name, entity_id, e
-            )
-            return False
-
-        return self._pagos360_extract_paid_at(entity_data)
 
     def _pagos360_extract_paid_at(self, data):
         """Recursively look for a paid_at key in Pagos360 response payloads."""
