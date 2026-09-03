@@ -39,7 +39,6 @@ class TestWebhookToken(HttpCase):
             "entity_id": 1,
             "type": "paid",
             "payload": {"id": 1, "request_result_id": 1, "external_reference": reference},
-            "from_webhook": True,
         }
         return self.url_open(url, data=json.dumps(payload), headers={"Content-Type": "application/json"})
 
@@ -79,8 +78,9 @@ class TestWebhookToken(HttpCase):
 
     def test_notification_with_matching_token_is_processed(self):
         tx = self._make_tx("REF-ok")
-        # _apply_updates falls back to the API for the effective payment date; keep the test offline.
-        with patch.object(type(self.provider), "_pagos360_make_request", return_value={}):
+        # The controller reads the entity back from the API; keep the test offline.
+        entity = {"data": [{"id": 1, "state": "paid", "external_reference": tx.reference}]}
+        with patch.object(type(self.provider), "_pagos360_make_request", return_value=entity):
             response = self._post(tx.reference, self.provider.pagos360_webhook_token)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(tx.state, "done")
