@@ -1,17 +1,15 @@
-from unittest.mock import patch
-
 from odoo.tests.common import TransactionCase, tagged
 
-# Pagos360 notifications carry ids and the external reference only, never an amount.
+# A payment request carries no amount to validate until it is paid.
 PAID_REFERENCE = "TEST/2026/00001"
 PAID_AMOUNT = 1234.56
 
 
 @tagged("post_install", "-at_install")
 class TestWebhookAmount(TransactionCase):
-    """Covers ticket 124521: webhook notifications carry no amount, so reporting 0 made
-    core flag the payment data as invalid and return before `_apply_updates`, leaving
-    paid invoices unpaid and rejections stuck in error."""
+    """Covers ticket 124521: a payload with no amount to read made us report 0, and core
+    flagged the payment data as invalid and returned before `_apply_updates`, leaving paid
+    invoices unpaid and rejections stuck in error."""
 
     @classmethod
     def setUpClass(cls):
@@ -49,7 +47,7 @@ class TestWebhookAmount(TransactionCase):
         )
 
     def _webhook_data(self, notification_type, reference=PAID_REFERENCE, entity_name="payment_request", payload=None):
-        """Build a notification as Pagos360 posts it to /payment/pagos360/webhook."""
+        """Build the payload as it reaches `_process`, already read back from the API."""
         data = {"id": 999001, "request_result_id": 999002, "external_reference": reference}
         data.update(payload or {})
         return {
@@ -57,14 +55,10 @@ class TestWebhookAmount(TransactionCase):
             "entity_id": 999001,
             "type": notification_type,
             "payload": data,
-            "from_webhook": True,
         }
 
     def _process(self, data):
-        # _apply_updates falls back to the API for the effective payment date; keep the
-        # test offline. The module already tolerates a failing call.
-        with patch.object(type(self.provider), "_pagos360_make_request", return_value={}):
-            return self.env["payment.transaction"].sudo()._process("pagos360", data)
+        return self.env["payment.transaction"].sudo()._process("pagos360", data)
 
     # --- webhook payloads without an amount -------------------------------------------
 
