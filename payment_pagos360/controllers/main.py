@@ -24,8 +24,12 @@ class Pagos360Controller(portal.CustomerPortal):
     _webhook_url = '/payment/pagos360/webhook'
 
     @http.route('/payment/pagos360/pagofacil', type='http', methods=['GET', 'POST'], auth='public', website=True, csrf=False)
-    def pagofacil_barcode(self, tx_id, access_token, **kwargs):
+    def pagofacil_barcode(self, tx_id=None, access_token=None, **kwargs):
         """ Display the payment confirmation page to the user.
+
+        Both params default to None: the route is reachable without them (the
+        browser following a redirect, a reload) and a missing argument would
+        raise a TypeError before the method runs, returning a 500 to the payer.
 
         :param str tx_id: The transaction to confirm, as a `payment.transaction` id
         :param str access_token: The access token used to verify the user
@@ -53,6 +57,16 @@ class Pagos360Controller(portal.CustomerPortal):
             values = tx_sudo._get_operation_info_from_data(
                 tx_sudo.provider_id._pagos360_make_request(url, method="GET")
             )
+            # Without a pdf_url there is nothing to redirect to: an empty
+            # Location makes the browser come back to this route without its
+            # query string, which used to end up in a 500.
+            if not values or not values.get('pdf_url'):
+                _logger.warning(
+                    "Pagos360 did not return a pdf_url for transaction %s, data: %s",
+                    tx_sudo.reference, values,
+                )
+                return request.redirect('/my/home')
+
             tx_sudo.write({
                 'provider_reference': values.get('id'),
                 'state': values.get('state', 'draft'),
@@ -63,8 +77,10 @@ class Pagos360Controller(portal.CustomerPortal):
             return request.redirect('/my/home')
 
     @http.route('/payment/pagos360/rapipago', type='http', methods=['GET', 'POST'], auth='public', website=True, csrf=False)
-    def rapipago_barcode(self, tx_id, access_token, **kwargs):
+    def rapipago_barcode(self, tx_id=None, access_token=None, **kwargs):
         """ Display the payment confirmation page to the user.
+
+        Both params default to None, see `pagofacil_barcode`.
 
         :param str tx_id: The transaction to confirm, as a `payment.transaction` id
         :param str access_token: The access token used to verify the user
@@ -85,6 +101,13 @@ class Pagos360Controller(portal.CustomerPortal):
 
             ref_sanitarzed = tx_sudo.reference.replace('%', '%25')
             values = tx_sudo._get_operation_info_from_data(tx_sudo.provider_id._pagos360_make_request('/payment-request?external_reference=%s' % ref_sanitarzed, method='GET' ))
+            # No matching payment request: nothing to render for the payer.
+            if not values:
+                _logger.warning(
+                    "Pagos360 did not return a payment request for transaction %s", tx_sudo.reference
+                )
+                return request.redirect('/my/home')
+
             tx_sudo.write({
                 'provider_reference': values.get('id'),
                 'state': values.get('state', 'draft'),
