@@ -20,6 +20,28 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
 
 #. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+#, python-format
+msgid ""
+"%(method)s does not accept payments over %(limit)s. Please choose another "
+"payment method."
+msgstr ""
+"%(method)s no acepta pagos superiores a %(limit)s. Por favor, elija otro "
+"método de pago."
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+#, python-format
+msgid ""
+"%(method)s does not accept payments over %(limit)s. Please pay the invoices "
+"separately, or choose another payment method."
+msgstr ""
+"%(method)s no acepta pagos superiores a %(limit)s. Por favor, pague las "
+"facturas por separado o elija otro método de pago."
+
+#. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "Ante algún inconveniente al realizar su pago contactese a"
 msgstr ""
