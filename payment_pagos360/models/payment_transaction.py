@@ -3,12 +3,14 @@ import pprint
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools.misc import formatLang
 from odoo.tools.safe_eval import safe_eval
 from werkzeug import urls
 
+from .. import const
 from ..controllers.main import Pagos360Controller
 
 _logger = logging.getLogger(__name__)
@@ -19,6 +21,38 @@ class PaymentTransaction(models.Model):
 
     pagos360_adhesion_type = fields.Selection(related="token_id.pagos360_adhesion_type", store=True)
     pagos360_effective_payment_date = fields.Date()
+
+    @api.constrains("amount", "currency_id", "payment_method_id", "provider_id")
+    def _check_pagos360_cash_maximum_amount(self):
+        """Pagos360 silently skips the coupon above its cash limit, leaving the payer stuck."""
+        maximum_amount = float(self.env["ir.config_parameter"].sudo().get_param("pagos360.cash_maximum_amount", "0"))
+        if not maximum_amount:
+            return
+        for tx in self.filtered(lambda t: t.provider_code == "pagos360"):
+            if tx.payment_method_code not in const.CASH_PAYMENT_METHOD_CODES:
+                continue
+            company = tx.provider_id.company_id
+            converted_amount = tx.currency_id._convert(
+                tx.amount,
+                company.currency_id,
+                company,
+                tx.create_date or fields.Date.context_today(tx),
+            )
+            if company.currency_id.compare_amounts(converted_amount, maximum_amount) > 0:
+                limit = formatLang(self.env, maximum_amount, currency_obj=company.currency_id)
+                if len(tx.invoice_ids) > 1:
+                    message = _(
+                        "%(method)s does not accept payments over %(limit)s. Please pay the invoices separately, or choose another payment method.",
+                        method=tx.payment_method_id.name,
+                        limit=limit,
+                    )
+                else:
+                    message = _(
+                        "%(method)s does not accept payments over %(limit)s. Please choose another payment method.",
+                        method=tx.payment_method_id.name,
+                        limit=limit,
+                    )
+                raise ValidationError("PAGOS360: " + message)
 
     def _create_payment(self, **extra_create_values):
         self.ensure_one()
