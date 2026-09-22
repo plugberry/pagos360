@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="pagos360_cash_maximum_amount" model="ir.config_parameter">
+        <field name="key">pagos360.cash_maximum_amount</field>
+        <field name="value">1000000</field>
+    </record>
+
+</odoo>

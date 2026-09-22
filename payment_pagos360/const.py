@@ -41,3 +41,10 @@ EVENT_TYPES = [
     "payment_request.expired",
     "payment_request.link_pagos_created",
 ]
+
+# Payment methods that end up in a cash coupon (PagoFacil/Rapipago). Pagos360 does not issue
+# the coupon above its cash limit: the request is created but comes back without `pdf_url`.
+CASH_PAYMENT_METHOD_CODES = [
+    "pagofacil",
+    "rapipago",
+]
