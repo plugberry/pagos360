@@ -484,9 +484,16 @@ class PaymentTransaction(models.Model):
                 return
             if self.token_id.pagos360_adhesion_type == "card_adhesion":
                 req = self._pagos360_card_debit_request()
-                self._process(self.provider_code, self.simulate_webhook("card_adhesion", req))
-            if self.token_id.pagos360_adhesion_type == "adhesion":
+            elif self.token_id.pagos360_adhesion_type == "adhesion":
                 req = self._pagos360_debit_request()
+            else:
+                raise ValidationError(
+                    "PAGOS360: "
+                    + _(
+                        "Transaction %s cannot be charged: its payment token has no adhesion type.",
+                        self.reference,
+                    )
+                )
             self.env.cr.commit()  # pylint: disable=invalid-commit
             if req:
                 self._process(self.provider_code, self.simulate_webhook(self.token_id.pagos360_adhesion_type, req))
