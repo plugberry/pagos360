@@ -23,12 +23,16 @@ class AccountMove(models.Model):
         This method creates a payment request in Pagos360 for each invoice and retrieves
         the associated barcodes (PagoFacil/RapiPago) that can be printed on the invoice.
         """
-        provider_ids = self.env["payment.provider"].search(
-            [
-                ("code", "=", "pagos360"),
-                ("state", "!=", "disabled"),
-                ("company_id", "in", self.mapped("company_id").ids),
-            ]
+        provider_ids = (
+            self.env["payment.provider"]
+            .sudo()
+            .search(
+                [
+                    ("code", "=", "pagos360"),
+                    ("state", "!=", "disabled"),
+                    ("company_id", "in", self.mapped("company_id").ids),
+                ]
+            )
         )
 
         for invoice in self.filtered(
