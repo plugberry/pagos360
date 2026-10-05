@@ -1,3 +1,4 @@
+from . import test_collection_control
 from . import test_coupon_exclusions
 from . import test_debit_reference
 from . import test_error_to_pending
