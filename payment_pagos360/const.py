@@ -49,3 +49,18 @@ CASH_PAYMENT_METHOD_CODES = [
     "pagofacil",
     "rapipago",
 ]
+
+# Daily collection control. Pagos360 reports closed days in Argentina's time.
+CONTROL_TIMEZONE = "America/Argentina/Buenos_Aires"
+# Days after the execution date until a debit counts as due: CBU debits are reported two days after payment.
+CONTROL_DEBIT_MARGIN_DAYS = 3
+# Days an adhesion has to be signed, counted from its creation.
+CONTROL_ADHESION_DAYS = 7
+# Days after the due date of the second and last individual check.
+CONTROL_RECHECK_DAYS = 7
+# Per row kind: states the control checks, and states that already reflect the row.
+CONTROL_STATES = {
+    "collection": (("draft", "pending", "error"), ("done",)),
+    "chargeback": (("done",), ("cancel",)),
+    "signed_adhesion": (("draft", "pending"), ("done",)),
+}

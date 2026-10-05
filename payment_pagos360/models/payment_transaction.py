@@ -1,18 +1,24 @@
 import logging
 import pprint
+from collections import Counter
 from datetime import date, timedelta
 
+import pytz
 from dateutil.relativedelta import relativedelta
 from odoo import _, api, fields, models
 from odoo.addons.payment import utils as payment_utils
 from odoo.exceptions import UserError, ValidationError
-from odoo.tools.misc import formatLang
+from odoo.tools.misc import format_date, formatLang
 from odoo.tools.urls import urljoin
 
 from .. import const
 from ..controllers.main import Pagos360Controller
 
 _logger = logging.getLogger(__name__)
+
+
+class _Pagos360ControlAborted(Exception):
+    """Too many individual checks failed in a row: the API is failing in block."""
 
 
 class PaymentTransaction(models.Model):
@@ -567,61 +573,227 @@ class PaymentTransaction(models.Model):
         self.pagos360_debit_execution_date = execution_date
         return res
 
+    def _pagos360_fetch_and_process_transaction(self):
+        """Query Pagos360 for the current state of this transaction and process it as a notification.
+
+        An entity that Pagos360 does not return is skipped.
+
+        :return: The simulated notifications that were processed.
+        :rtype: list[dict]
+        """
+        self.ensure_one()
+        provider = self.provider_id
+        ref_sanitized = self.reference.replace("%", "%25")
+        entities = []
+        if self.operation == "validation":
+            for entity_name in ("card_adhesion", "adhesion"):
+                endpoint = "/%s?external_reference=%s&page=1" % (entity_name.replace("_", "-"), ref_sanitized)
+                datas = provider._pagos360_make_request(endpoint, method="GET")
+                entities += [(entity_name, data) for data in datas.get("data") or []]
+        elif not self.pagos360_adhesion_type:
+            if self.provider_reference:
+                from_date = (self.create_date - relativedelta(months=1)).strftime("%d-%m-%Y")
+                to_date = (self.create_date + relativedelta(months=1)).strftime("%d-%m-%Y")
+                url = (
+                    f"/payment-request?id={self.provider_reference}&created_at_gte={from_date}&created_at_lte={to_date}"
+                )
+            else:
+                url = "/payment-request?external_reference=%s" % ref_sanitized
+            data = self._get_operation_info_from_data(provider._pagos360_make_request(url, method="GET"))
+            entities.append(("payment_request", data))
+        else:
+            entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE[self.pagos360_adhesion_type]
+            endpoint = "/%s?id=%s" % (entity_name.replace("_", "-"), self.provider_reference)
+            datas = provider._pagos360_make_request(endpoint, method="GET").get("data") or [None]
+            entities.append((entity_name, datas[0]))
+
+        payloads = []
+        for entity_name, data in entities:
+            payload = self.simulate_webhook(entity_name, data)
+            if payload:
+                payloads.append(payload)
+                self.sudo()._process(self.provider_code, payload)
+        return payloads
+
     def get_pagos360_info(self, check_payment_state=True):
         result_msg = []
         for tx in self.filtered(lambda x: x.provider_code == "pagos360"):
-            # Check state of adhesion
-            payload = False
-            ref_sanitarzed = tx.reference.replace("%", "%25")
-            if tx.operation == "validation":
-                datas = tx.provider_id._pagos360_make_request(
-                    "/card-adhesion?external_reference=%s&page=1" % ref_sanitarzed, method="GET"
-                )
-                entity_name = "card_adhesion"
-                for data in datas["data"]:
-                    payload = tx.simulate_webhook(entity_name, data)
-                    result_msg.append(payload)
-                    tx.sudo()._process(tx.provider_code, payload)
-                datas = tx.provider_id._pagos360_make_request(
-                    "/adhesion?external_reference=%s&page=1" % ref_sanitarzed, method="GET"
-                )
-                entity_name = "adhesion"
-                for data in datas["data"]:
-                    payload = tx.simulate_webhook(entity_name, data)
-                    result_msg.append(payload)
-                    tx.sudo()._process(tx.provider_code, payload)
-
-            # Check state of payment
-            elif not tx.pagos360_adhesion_type and tx.operation != "validation":
-                # https://api.sandbox.pagos360.com/debit-request?page=1
-                if tx.provider_reference:
-                    from_date = (tx.create_date - relativedelta(months=1)).strftime("%d-%m-%Y")
-                    to_date = (tx.create_date + relativedelta(months=1)).strftime("%d-%m-%Y")
-                    url = f"/payment-request?id={tx.provider_reference}&created_at_gte={from_date}&created_at_lte={to_date}"
-                else:
-                    url = "/payment-request?external_reference=%s" % ref_sanitarzed
-                data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request(url, method="GET"))
-                payload = tx.simulate_webhook("payment_request", data)
-                result_msg.append(payload)
-                tx.sudo()._process(tx.provider_code, payload)
-            # Check state of payment
-            elif tx.pagos360_adhesion_type == "adhesion":
-                data = tx.provider_id._pagos360_make_request(
-                    "/debit-request?id=%s" % tx.provider_reference, method="GET"
-                )
-                payload = tx.simulate_webhook("debit_request", data["data"][0])
-                result_msg.append(payload)
-                tx.sudo()._process(tx.provider_code, payload)
-
-            elif tx.pagos360_adhesion_type == "card_adhesion":
-                data = tx.provider_id._pagos360_make_request(
-                    "/card-debit-request?id=%s" % tx.provider_reference, method="GET"
-                )
-                payload = self.simulate_webhook("card_debit_request", data["data"][0])
-                result_msg.append(payload)
-                tx.sudo()._process(tx.provider_code, payload)
+            result_msg += tx._pagos360_fetch_and_process_transaction()
             self.env.cr.commit()  # pylint: disable=invalid-commit
         return self.pagos360_readable_result(result_msg)
+
+    # === COLLECTION CONTROL === #
+
+    @api.model
+    def _cron_pagos360_collection_control(self):
+        """Daily control of what the webhook left unresolved.
+
+        Providers in test mode share the sandbox account, so they only run it by hand.
+        """
+        for provider in self.env["payment.provider"].search([("code", "=", "pagos360"), ("state", "=", "enabled")]):
+            self._pagos360_collection_control(provider)
+
+    @api.model
+    def _pagos360_collection_control(self, provider):
+        """Check the day before against Pagos360 and process what Odoo did not hear about.
+
+        Step 1 checks one by one the transactions that the day's reports or the signed adhesions
+        list and that Odoo has not resolved yet. Step 2 checks the unresolved ones whose term ends
+        on the control day, or a week before it.
+
+        :return: The summary line, also written to the log.
+        :rtype: str
+        """
+        day = provider._pagos360_get_control_date()
+        max_errors = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.control_max_consecutive_errors", 5))
+        prefix = "PAGOS360 CONTROL provider %s day %s: " % (provider.id, day)
+        stats = Counter()
+        errors_in_a_row = 0
+
+        def check(tx):
+            """Fetch and process one transaction in its own commit. Return whether Pagos360 answered."""
+            nonlocal errors_in_a_row
+            try:
+                payloads = tx._pagos360_fetch_and_process_transaction()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+            except Exception:
+                self.env.cr.rollback()
+                stats["failed"] += 1
+                errors_in_a_row += 1
+                _logger.warning(prefix + "the check of %s failed.", tx.reference, exc_info=True)
+                if errors_in_a_row >= max_errors:
+                    raise _Pagos360ControlAborted("%s checks failed in a row" % errors_in_a_row) from None
+                return False
+            errors_in_a_row = 0
+            stats["failed"] += not payloads
+            return bool(payloads)
+
+        try:
+            touched = self._pagos360_control_listed(provider, day, prefix, stats, check)
+            self._pagos360_control_expired(provider, day, touched, prefix, stats, check)
+        except Exception as e:
+            self.env.cr.rollback()
+            stats["aborted"] = 1
+            expected = isinstance(e, (_Pagos360ControlAborted, ValidationError))
+            _logger.error(prefix + "aborted, the rest is left for the next run: %s", e, exc_info=not expected)
+        summary = prefix + ", ".join("%s=%s" % item for item in stats.items())
+        _logger.info(summary)
+        return summary
+
+    @api.model
+    def _pagos360_control_listed(self, provider, day, prefix, stats, check):
+        """Step 1. Return the transactions matched by a row, processed or not."""
+        # Everything is read first, so a failed read processes nothing.
+        since = day - timedelta(days=const.CONTROL_ADHESION_DAYS)
+        sources = {
+            "collection": provider._pagos360_get_report("collection", day),
+            "chargeback": provider._pagos360_get_report("chargeback", day),
+            "signed_adhesion": provider._pagos360_get_signed_adhesions(since),
+        }
+        events = {"collection": _("paid"), "chargeback": _("reverted"), "signed_adhesion": _("signed")}
+        state_labels = dict(self._fields["state"]._description_selection(self.env))
+        touched = self.browse()
+        for kind, rows in sources.items():
+            stats[kind] = len(rows)
+            to_check, resolved = const.CONTROL_STATES[kind]
+            for row in rows:
+                row_id = row.get("id") if kind == "signed_adhesion" else row.get("request_id")
+                row_label = "%s row %s (%s)" % (kind, row_id, row.get("external_reference"))
+                tx = self._pagos360_control_match(provider, kind, row_id, row.get("external_reference"))
+                if len(tx) != 1:
+                    stats["ambiguous" if tx else "unmatched"] += 1
+                    # The sandbox account is shared by every test database.
+                    level = logging.INFO if not tx and provider.state == "test" else logging.WARNING
+                    _logger.log(level, prefix + "%s matches %s transactions.", row_label, len(tx))
+                    continue
+                touched |= tx
+                if tx.state in resolved:
+                    stats["resolved"] += 1
+                    continue
+                checked = tx.state in to_check
+                if checked and not check(tx):
+                    continue
+                if tx.state in resolved:
+                    stats["rescued"] += 1
+                    continue
+                _logger.warning(prefix + "%s lists %s, which is %s in Odoo.", row_label, tx.reference, tx.state)
+                # A canceled transaction is never rescued: someone has to decide before charging again.
+                if checked or (kind == "collection" and tx.state == "cancel"):
+                    tx._pagos360_control_post_note(
+                        _(
+                            "Pagos360 reports transaction %(reference)s as %(event)s on %(date)s (id %(row_id)s), "
+                            "but it is %(state)s in Odoo. Please review it before charging again.",
+                            reference=tx.reference,
+                            event=events[kind],
+                            date=format_date(self.env, day),
+                            row_id=row_id,
+                            state=state_labels[tx.state],
+                        )
+                    )
+        return touched
+
+    @api.model
+    def _pagos360_control_match(self, provider, kind, row_id, reference):
+        """Return the transactions of `provider` that a report or listing row refers to."""
+        domain = [("provider_id", "=", provider.id), ("provider_code", "=", "pagos360")]
+        if kind == "signed_adhesion":
+            return self.search(domain + [("operation", "=", "validation"), ("reference", "=", reference)])
+        domain.append(("operation", "!=", "validation"))
+        # Debits carry the external reference of their adhesion, shared by all its debits:
+        # they can only be matched by their own id.
+        tx = self.search(domain + [("provider_reference", "=", str(row_id))]) if row_id else self.browse()
+        if not tx and reference:
+            tx = self.search(domain + [("reference", "=", reference), ("pagos360_adhesion_type", "=", False)])
+        return tx
+
+    @api.model
+    def _pagos360_control_expired(self, provider, day, touched, prefix, stats, check):
+        """Step 2: check the unresolved transactions whose term ends on `day`, or a week before it."""
+        due_days = {day, day - timedelta(days=const.CONTROL_RECHECK_DAYS)}
+        oldest = min(due_days) - timedelta(
+            days=max(provider.pagos360_coupon_validity_days, const.CONTROL_ADHESION_DAYS)
+        )
+        executions = [due - timedelta(days=const.CONTROL_DEBIT_MARGIN_DAYS) for due in due_days]
+        domain = [
+            ("provider_id", "=", provider.id),
+            ("state", "in", ("draft", "pending")),
+            ("id", "not in", touched.ids),
+        ]
+        due = self.search(
+            domain
+            + [
+                "|",
+                ("create_date", ">=", oldest - timedelta(days=1)),
+                ("pagos360_debit_execution_date", "in", executions),
+            ],
+            order="create_date, id",
+        ).filtered(lambda tx: tx._pagos360_get_control_due_date() in due_days)
+        max_checks = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.control_max_checks", 50))
+        if len(due) > max_checks:
+            stats["over_limit"] = len(due) - max_checks
+            _logger.info(
+                prefix + "over the limit, left for the recheck: %s", ", ".join(due[max_checks:].mapped("reference"))
+            )
+        for tx in due[:max_checks]:
+            stats["expired_checked"] += 1
+            check(tx)
+
+    def _pagos360_get_control_due_date(self):
+        """Return the day the term of this transaction ends, in Argentina's time, or None if unknown."""
+        self.ensure_one()
+        if self.operation != "validation" and self.pagos360_adhesion_type:
+            execution = self.pagos360_debit_execution_date
+            return execution and execution + timedelta(days=const.CONTROL_DEBIT_MARGIN_DAYS) or None
+        created = pytz.utc.localize(self.create_date).astimezone(pytz.timezone(const.CONTROL_TIMEZONE)).date()
+        if self.operation == "validation":
+            return created + timedelta(days=const.CONTROL_ADHESION_DAYS)
+        return created + timedelta(days=self.provider_id.pagos360_coupon_validity_days)
+
+    def _pagos360_control_post_note(self, message):
+        """Leave an internal note, hidden from the portal, on the invoices and sale orders of the transaction."""
+        sale_orders = self.sale_order_ids if "sale_order_ids" in self._fields else []
+        for document in [*self.invoice_ids, *sale_orders]:
+            document.message_post(body=message, subtype_xmlid="mail.mt_note")
 
     def pagos360_cancel_transactions(self):
         for tx in self.filtered(lambda t: t.pagos360_adhesion_type in ["adhesion", "card_adhesion"]):

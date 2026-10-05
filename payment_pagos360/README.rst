@@ -27,6 +27,13 @@ Características
   (ej. ``39`` = Visa), no con el nombre: la API descarta en silencio cualquier otro
   identificador. El código no es estable, por eso se refresca desde la API en cada
   "Fetch available methods".
+- Control diario de cobranzas: una acción planificada revisa el día anterior
+  (hora de Argentina) contra Pagos360 y resuelve lo que el webhook no avisó.
+  Lee el reporte de cobranzas, el de contracargos y las adhesiones firmadas, y
+  consulta una por una solo las transacciones que en Odoo siguen sin resolver;
+  las demás pendientes se consultan el día en que vence su plazo y, como red,
+  una semana después. Corre solo sobre proveedores habilitados; en modo prueba
+  se lanza a mano.
 
 Detalles Técnicos
 =================
@@ -50,7 +57,9 @@ Modelos heredados:
   ``pagos360_excluded_card_brand_ids``), más los métodos de API, webhooks y armado
   de las exclusiones del cupón (``_pagos360_get_coupon_exclusions``).
 - ``payment.transaction``: armado del payload de la solicitud de pago, flujo de
-  adhesión/tokenización y cobro hijo.
+  adhesión/tokenización y cobro hijo. La consulta individual a la API
+  (``_pagos360_fetch_and_process_transaction``) la usan el botón *Check in* y el
+  control diario (``_cron_pagos360_collection_control``).
 - ``payment.token``: datos de adhesión del token.
 
 Otros elementos:
@@ -60,6 +69,13 @@ Otros elementos:
 - ``security/ir.model.access.csv``: accesos a los catálogos nuevos.
 - ``data/pagos360_catalog_data.xml``: canales soportados y planes de cuotas
   habituales.
+- ``data/ir_cron_data.xml``: acción planificada diaria del control de cobranzas.
+- Parámetros del sistema del control: ``pagos360.control_max_checks`` (tope de
+  consultas individuales por corrida, 50) y
+  ``pagos360.control_max_consecutive_errors`` (errores seguidos que cortan la
+  corrida, 5).
+- Acción *Run Collection Control (PAGOS360)* en el proveedor: corre el control
+  para el día anterior, también en modo prueba.
 - ``migrations/19.0.2.1.0/post-migrate.py``: convierte la configuración previa
   (campos de texto con listas serializadas) a los nuevos Many2many.
 
@@ -77,6 +93,9 @@ Uso
 #. Seleccionar, como etiquetas, los canales, cuotas y marcas de tarjeta a excluir
    del cupón.
 #. Usar *Ensure Webhook* para registrar o verificar el webhook en Pagos360.
+#. El control diario corre solo. Lo que no puede resolver queda en el log del
+   servidor con el prefijo ``PAGOS360 CONTROL`` y, si la transacción tiene
+   facturas u órdenes de venta, como nota interna en su chatter.
 
 Arquitectura
 ============

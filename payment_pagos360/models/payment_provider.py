@@ -1,5 +1,7 @@
 import logging
+from datetime import timedelta
 
+import pytz
 import requests
 from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -266,6 +268,61 @@ class PaymentProvider(models.Model):
                 )
             )
         return response.json()
+
+    def _pagos360_get_control_date(self):
+        """Return the day the collection control checks: yesterday, in Argentina's time.
+
+        Pagos360 reports only closed days, and the cron runs in UTC.
+        """
+        now = pytz.utc.localize(fields.Datetime.now())
+        return now.astimezone(pytz.timezone(const.CONTROL_TIMEZONE)).date() - timedelta(days=1)
+
+    def _pagos360_get_report(self, kind, day):
+        """Return the rows of the `collection` or `chargeback` report of a closed day.
+
+        Reports are not paginated: one call returns the whole day.
+        """
+        self.ensure_one()
+        response = self._pagos360_make_request("/report/%s/%s" % (kind, day.strftime("%d-%m-%Y")), method="GET")
+        return response.get("data") or []
+
+    def _pagos360_get_signed_adhesions(self, since):
+        """Return the signed CBU and card adhesions created from `since` on.
+
+        Pagos360 ignores `signed_at_gte` without an error, so the rows are filtered by creation
+        date, and state and date are checked again on each row.
+        """
+        self.ensure_one()
+        rows = []
+        for endpoint in ("/card-adhesion", "/adhesion"):
+            page = 1
+            while True:
+                response = self._pagos360_make_request(
+                    "%s?state=signed&created_at_gte=%s&page=%s" % (endpoint, since.strftime("%d-%m-%Y"), page),
+                    method="GET",
+                )
+                data = response.get("data") or []
+                rows += [
+                    row
+                    for row in data
+                    if row.get("state") == "signed" and (row.get("created_at") or "")[:10] >= since.isoformat()
+                ]
+                per_page = response.get("items_per_page") or len(data)
+                if not data or page * per_page >= (response.get("total_count") or 0):
+                    break
+                page += 1
+        return rows
+
+    def action_pagos360_collection_control(self):
+        """Run the daily collection control now, also on providers in test mode."""
+        providers = self.filtered(lambda p: p.code == "pagos360" and p.state in ("enabled", "test"))
+        summaries = [self.env["payment.transaction"]._pagos360_collection_control(p) for p in providers]
+        message = "\n".join(summaries) or _("There is no Pagos360 provider enabled or in test mode.")
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {"message": message, "sticky": True},
+        }
 
     @api.depends("pagos360_api_key", "pagos360_test_api_key")
     def ensure_webhook(self):
