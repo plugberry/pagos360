@@ -583,7 +583,7 @@ class PaymentTransaction(models.Model):
         """
         self.ensure_one()
         provider = self.provider_id
-        ref_sanitized = self.reference.replace("%", "%25")
+        ref_sanitized = self._pagos360_sanitized_reference()
         entities = []
         if self.operation == "validation":
             for entity_name in ("card_adhesion", "adhesion"):
@@ -591,16 +591,7 @@ class PaymentTransaction(models.Model):
                 datas = provider._pagos360_make_request(endpoint, method="GET")
                 entities += [(entity_name, data) for data in datas.get("data") or []]
         elif not self.pagos360_adhesion_type:
-            if self.provider_reference:
-                from_date = (self.create_date - relativedelta(months=1)).strftime("%d-%m-%Y")
-                to_date = (self.create_date + relativedelta(months=1)).strftime("%d-%m-%Y")
-                url = (
-                    f"/payment-request?id={self.provider_reference}&created_at_gte={from_date}&created_at_lte={to_date}"
-                )
-            else:
-                url = "/payment-request?external_reference=%s" % ref_sanitized
-            data = self._get_operation_info_from_data(provider._pagos360_make_request(url, method="GET"))
-            entities.append(("payment_request", data))
+            entities.append(("payment_request", self._pagos360_get_payment_request()))
         else:
             entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE[self.pagos360_adhesion_type]
             endpoint = "/%s?id=%s" % (entity_name.replace("_", "-"), self.provider_reference)
@@ -618,7 +609,16 @@ class PaymentTransaction(models.Model):
     def get_pagos360_info(self, check_payment_state=True):
         result_msg = []
         for tx in self.filtered(lambda x: x.provider_code == "pagos360"):
-            result_msg += tx._pagos360_fetch_and_process_transaction()
+            payloads = tx._pagos360_fetch_and_process_transaction()
+            if not payloads and tx.operation != "validation" and not tx.pagos360_adhesion_type:
+                result_msg.append(
+                    {
+                        "entity_name": "payment_request",
+                        "error": _("No payment request found in Pagos360 for reference %s.", tx.reference),
+                        "payload": {},
+                    }
+                )
+            result_msg += payloads
             self.env.cr.commit()  # pylint: disable=invalid-commit
         return self.pagos360_readable_result(result_msg)
 
@@ -838,11 +838,33 @@ class PaymentTransaction(models.Model):
                     tx._set_canceled()
         return
 
+    def _pagos360_sanitized_reference(self):
+        # Pagos360 stores the external reference stripped, so a trailing space never matches.
+        return (self.reference or "").strip().replace("%", "%25")
+
+    def _pagos360_get_payment_request(self, from_date=None, to_date=None):
+        """Return the Pagos360 payment request of this transaction, or an empty dict.
+
+        :param from_date: lower bound of the request creation date, a month before the transaction by default.
+        :param to_date: upper bound of the request creation date, a month after the transaction by default.
+        """
+        self.ensure_one()
+        # The listing only covers recent requests unless a date range is given.
+        from_date = from_date or self.create_date - relativedelta(months=1)
+        to_date = to_date or self.create_date + relativedelta(months=1)
+        if self.provider_reference:
+            url = f"/payment-request?id={self.provider_reference}"
+        else:
+            url = f"/payment-request?external_reference={self._pagos360_sanitized_reference()}"
+        url += f"&created_at_gte={from_date.strftime('%d-%m-%Y')}&created_at_lte={to_date.strftime('%d-%m-%Y')}"
+        return self._get_operation_info_from_data(self.provider_id._pagos360_make_request(url, method="GET"))
+
     def _get_operation_info_from_data(self, request_info):
-        for data in request_info["data"]:
-            if data["external_reference"] == self.reference:
+        reference = (self.reference or "").strip()
+        for data in (request_info or {}).get("data") or []:
+            if (data.get("external_reference") or "").strip() == reference:
                 return data
-        return []
+        return {}
 
     def pagos360_readable_result(self, result_msg):
         txt = []
