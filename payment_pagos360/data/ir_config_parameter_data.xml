@@ -6,4 +6,14 @@
         <field name="value">1000000</field>
     </record>
 
+    <record id="pagos360_control_max_checks" model="ir.config_parameter">
+        <field name="key">pagos360.control_max_checks</field>
+        <field name="value">50</field>
+    </record>
+
+    <record id="pagos360_control_max_consecutive_errors" model="ir.config_parameter">
+        <field name="key">pagos360.control_max_consecutive_errors</field>
+        <field name="value">5</field>
+    </record>
+
 </odoo>
