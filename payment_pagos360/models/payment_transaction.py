@@ -189,6 +189,8 @@ class PaymentTransaction(models.Model):
         super()._process_notification_data(notification_data)
         if self.provider_code != "pagos360":
             return
+        if not notification_data:
+            raise UserError(_("Pagos360 returned no data for transaction %s.", self.reference))
         entity_name = notification_data.get("entity_name")
         entity_id = notification_data.get("entity_id")
         if not entity_id:
@@ -410,7 +412,7 @@ class PaymentTransaction(models.Model):
         for tx in self.filtered(lambda x: x.provider_code == "pagos360"):
             # Check state of adhesion
             payload = False
-            ref_sanitarzed = tx.reference.replace("%", "%25")
+            ref_sanitarzed = tx._pagos360_sanitized_reference()
             if tx.operation == "validation":
                 datas = tx.provider_id._pagos360_make_request(
                     "/card-adhesion?external_reference=%s&page=1" % ref_sanitarzed, method="GET"
@@ -431,13 +433,16 @@ class PaymentTransaction(models.Model):
 
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != "validation":
-                # https://api.sandbox.pagos360.com/debit-request?page=1
-                if tx.provider_reference:
-                    url = f"/payment-request?id={tx.provider_reference}"
-                else:
-                    url = "/payment-request?external_reference=%s" % ref_sanitarzed
-                data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request(url, method="GET"))
-                payload = tx.simulate_webhook("payment_request", data)
+                payload = tx.simulate_webhook("payment_request", tx._pagos360_get_payment_request())
+                if not payload:
+                    result_msg.append(
+                        {
+                            "entity_name": "payment_request",
+                            "error": _("No payment request found in Pagos360 for reference %s.", tx.reference),
+                            "payload": {},
+                        }
+                    )
+                    continue
                 result_msg.append(payload)
                 tx.sudo()._process_notification_data(payload)
             # Check state of payment
@@ -477,11 +482,36 @@ class PaymentTransaction(models.Model):
                     tx._set_canceled()
         return
 
+    def _pagos360_sanitized_reference(self):
+        # Pagos360 stores the external reference stripped, so a trailing space never matches.
+        return (self.reference or "").strip().replace("%", "%25")
+
+    def _pagos360_get_payment_request(self, from_date=None, to_date=None):
+        """Return the Pagos360 payment request of this transaction, or an empty dict.
+
+        :param from_date: optional date or datetime, lower bound of the request creation date.
+        :param to_date: optional date or datetime, upper bound of the request creation date.
+        """
+        self.ensure_one()
+        if self.provider_reference:
+            url = f"/payment-request?id={self.provider_reference}"
+        else:
+            # The listing only covers recent requests unless a date range is given.
+            from_date = from_date or self.create_date - relativedelta(months=1)
+            to_date = to_date or self.create_date + relativedelta(months=1)
+            url = f"/payment-request?external_reference={self._pagos360_sanitized_reference()}"
+        if from_date:
+            url += f"&created_at_gte={from_date.strftime('%d-%m-%Y')}"
+        if to_date:
+            url += f"&created_at_lte={to_date.strftime('%d-%m-%Y')}"
+        return self._get_operation_info_from_data(self.provider_id._pagos360_make_request(url, method="GET"))
+
     def _get_operation_info_from_data(self, request_info):
-        for data in request_info["data"]:
-            if data["external_reference"] == self.reference:
+        reference = (self.reference or "").strip()
+        for data in (request_info or {}).get("data") or []:
+            if (data.get("external_reference") or "").strip() == reference:
                 return data
-        return []
+        return {}
 
     def pagos360_readable_result(self, result_msg):
         txt = []
