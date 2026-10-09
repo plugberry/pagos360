@@ -25,7 +25,7 @@ class TestCollectionControl(TransactionCase):
         cls.now = fields.Datetime.now().replace(hour=15, minute=0, second=0, microsecond=0)
         cls.startClassPatcher(freeze_time(cls.now))
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.day = cls.provider._pagos360_get_control_date()
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
         cls.Transaction = cls.env["payment.transaction"]

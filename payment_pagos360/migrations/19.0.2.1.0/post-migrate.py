@@ -1,6 +1,6 @@
 import logging
 
-from odoo import SUPERUSER_ID, Command, api
+from odoo import Command, api
 from odoo.tools.safe_eval import safe_eval
 from psycopg2 import sql
 
@@ -78,7 +78,7 @@ def migrate(cr, version):
         return
     present = [col for col in _OLD_COLUMNS if col in present_set]
 
-    env = api.Environment(cr, SUPERUSER_ID, {})
+    env = api.Environment(cr, api.SUPERUSER_ID, {})
     columns = sql.SQL(", ").join(sql.Identifier(col) for col in ["id", *present])
     cr.execute(
         sql.SQL("SELECT {} FROM payment_provider WHERE code = %s").format(columns),

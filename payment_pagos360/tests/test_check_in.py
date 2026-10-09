@@ -17,7 +17,7 @@ class TestCheckIn(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.payment_method = cls.env.ref("payment_pagos360.payment_method_pagos360")
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
 

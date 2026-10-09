@@ -16,7 +16,7 @@ class TestSendPaymentRequest(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.payment_method = cls.env.ref("payment_pagos360.payment_method_pagos360")
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
 
@@ -51,7 +51,7 @@ class TestSendPaymentRequest(TransactionCase):
             patch.object(type(tx), "get_debit_due_date", return_value=fields.Date.to_string(fields.Date.today())),
             # The method commits on purpose, which a test cursor refuses.
             patch.object(self.env.cr, "commit"),
-            patch.object(type(tx), "_process", return_value=None) as process,
+            patch.object(type(tx), "_record", return_value=None) as process,
         ):
             tx._send_payment_request()
         return process
@@ -67,4 +67,4 @@ class TestSendPaymentRequest(TransactionCase):
                 tx = self._make_tx(f"{REFERENCE}/{adhesion_type}", adhesion_type)
                 process = self._send(tx)
                 self.assertEqual(process.call_count, 1)
-                self.assertEqual(process.call_args.args[1]["entity_name"], entity_name)
+                self.assertEqual(process.call_args.args[0]["entity_name"], entity_name)
