@@ -14,7 +14,7 @@ class TestWebhookForgery(HttpCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.payment_method = cls.env.ref("payment_pagos360.payment_method_pagos360")
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
 
@@ -30,7 +30,7 @@ class TestWebhookForgery(HttpCase):
                 "partner_id": self.partner.id,
             }
         )
-        tx._set_pending()
+        tx.with_context(payment_safe_write=True)._set_pending()
         return tx
 
     def _post(self, body):
@@ -39,6 +39,12 @@ class TestWebhookForgery(HttpCase):
             data=json.dumps(body),
             headers={"Content-Type": "application/json"},
         )
+
+    def _run_processing(self):
+        """Apply the payment data queued by `_record`, as the processing cron does."""
+        for payment_data in self.env["payment.data"].sudo().search([("errored", "=", False)]):
+            payment_data.transaction_id.with_context(payment_safe_write=True)._process(payment_data.payload)
+            payment_data.unlink()
 
     def test_forged_paid_notification_does_not_mark_tx_paid(self):
         reference = "TEST/2026/00001"
@@ -57,6 +63,7 @@ class TestWebhookForgery(HttpCase):
         api_pending = {"data": [{"id": "999001", "external_reference": reference, "state": "pending"}]}
         with patch.object(type(self.provider), "_pagos360_make_request", return_value=api_pending):
             response = self._post(forged)
+            self._run_processing()
         self.assertEqual(response.status_code, 200)
         tx.invalidate_recordset()
         self.assertEqual(tx.state, "pending", "a forged notification must not move the state")
@@ -82,6 +89,7 @@ class TestWebhookForgery(HttpCase):
         }
         with patch.object(type(self.provider), "_pagos360_make_request", return_value=api_paid):
             response = self._post(notification)
+            self._run_processing()
         self.assertEqual(response.status_code, 200)
         tx.invalidate_recordset()
         self.assertEqual(tx.state, "done", "a paid state confirmed by the API must be processed")

@@ -4,20 +4,23 @@
     <record id="payment_method_pagos360" model="payment.method">
         <field name="name">Pagos360</field>
         <field name="code">pagos360</field>
-        <field name="image" type="base64" file="payment_pagos360/static/img/pagos360logo.png"/>
+        <field name="provider_id" ref="payment_provider_pagos360"/>
+        <field name="image" type="bytes" file="payment_pagos360/static/img/pagos360logo.png"/>
         <field name="support_tokenization">True</field>
     </record>
 
     <record id="payment_method_pagofacil" model="payment.method">
         <field name="name">PagoFacil</field>
         <field name="code">pagofacil</field>
-        <field name="image" type="base64" file="payment_pagos360/static/img/pagofacil.png"/>
+        <field name="provider_id" ref="payment_provider_pagos360"/>
+        <field name="image" type="bytes" file="payment_pagos360/static/img/pagofacil.png"/>
     </record>
 
     <record id="payment_method_rapipago" model="payment.method">
         <field name="name">RapiPago</field>
         <field name="code">rapipago</field>
-        <field name="image" type="base64" file="payment_pagos360/static/img/rapipago.png"/>
+        <field name="provider_id" ref="payment_provider_pagos360"/>
+        <field name="image" type="bytes" file="payment_pagos360/static/img/rapipago.png"/>
     </record>
 
 </odoo>
