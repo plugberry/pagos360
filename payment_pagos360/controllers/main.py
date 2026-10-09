@@ -2,8 +2,14 @@ import logging
 import pprint
 
 import werkzeug
+<<<<<<< b8da95fbef2e5188fbdd8d3bbe1dcc8058970654
 from dateutil.relativedelta import relativedelta
 from odoo import http
+||||||| ed0e5cda632377254cc317874eef345bbd919830
+from odoo import http
+=======
+from odoo import _, http
+>>>>>>> b66e529f5da71c755cbeca19c137c856eaa38c8c
 from odoo.addons.payment import utils as payment_utils
 from odoo.addons.portal.controllers import portal
 from odoo.exceptions import ValidationError
@@ -45,6 +51,7 @@ class Pagos360Controller(portal.CustomerPortal):
             if tx_sudo.provider_id.code != "pagos360" or tx_sudo.state not in ["draft", "pending"]:
                 return request.redirect("/my/home")
 
+<<<<<<< b8da95fbef2e5188fbdd8d3bbe1dcc8058970654
             ref_sanitarzed = tx_sudo.reference.replace("%", "%25")
             if tx_sudo.provider_reference:
                 from_date = (tx_sudo.create_date - relativedelta(months=1)).strftime("%d-%m-%Y")
@@ -56,6 +63,18 @@ class Pagos360Controller(portal.CustomerPortal):
             values = tx_sudo._get_operation_info_from_data(
                 tx_sudo.provider_id._pagos360_make_request(url, method="GET")
             )
+||||||| ed0e5cda632377254cc317874eef345bbd919830
+            ref_sanitarzed = tx_sudo.reference.replace("%", "%25")
+            values = tx_sudo._get_operation_info_from_data(
+                tx_sudo.provider_id._pagos360_make_request(
+                    "/payment-request?external_reference=%s" % ref_sanitarzed, method="GET"
+                )
+            )
+=======
+            values = tx_sudo._pagos360_get_payment_request()
+            if not values:
+                raise ValidationError(_("No payment request found in Pagos360 for reference %s.", tx_sudo.reference))
+>>>>>>> b66e529f5da71c755cbeca19c137c856eaa38c8c
             tx_sudo.write(
                 {
                     "provider_reference": values.get("id"),
@@ -90,12 +109,9 @@ class Pagos360Controller(portal.CustomerPortal):
             if tx_sudo.provider_id.code != "pagos360" or tx_sudo.state not in ["draft", "pending"]:
                 return request.redirect("/my/home")
 
-            ref_sanitarzed = tx_sudo.reference.replace("%", "%25")
-            values = tx_sudo._get_operation_info_from_data(
-                tx_sudo.provider_id._pagos360_make_request(
-                    "/payment-request?external_reference=%s" % ref_sanitarzed, method="GET"
-                )
-            )
+            values = tx_sudo._pagos360_get_payment_request()
+            if not values:
+                raise ValidationError(_("No payment request found in Pagos360 for reference %s.", tx_sudo.reference))
             tx_sudo.write(
                 {
                     "provider_reference": values.get("id"),
