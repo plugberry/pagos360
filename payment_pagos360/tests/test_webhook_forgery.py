@@ -14,7 +14,7 @@ class TestWebhookForgery(HttpCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.payment_method = cls.env.ref("payment_pagos360.payment_method_pagos360")
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
 
@@ -30,15 +30,20 @@ class TestWebhookForgery(HttpCase):
                 "partner_id": self.partner.id,
             }
         )
-        tx._set_pending()
+        tx.with_context(payment_safe_write=True)._set_pending()
         return tx
 
     def _post(self, body):
-        return self.url_open(
+        response = self.url_open(
             "/payment/pagos360/webhook",
             data=json.dumps(body),
             headers={"Content-Type": "application/json"},
         )
+        # In 20 the webhook only queues the payment data; apply it as the processing cron does.
+        for payment_data in self.env["payment.data"].sudo().search([("errored", "=", False)]):
+            payment_data.transaction_id.with_context(payment_safe_write=True)._process(payment_data.payload)
+            payment_data.unlink()
+        return response
 
     def test_forged_paid_notification_does_not_mark_tx_paid(self):
         reference = "TEST/2026/00001"
