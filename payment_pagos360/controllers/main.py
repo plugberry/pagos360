@@ -132,7 +132,9 @@ class Pagos360Controller(portal.CustomerPortal):
                 _logger.warning("Webhook URL is OK")
                 return Response("success", status=200)
             data["from_webhook"] = True
-            request.env["payment.transaction"].sudo()._process("pagos360", data)
+            tx_sudo = request.env["payment.transaction"].sudo()._search_by_reference("pagos360", data)
+            if tx_sudo:
+                tx_sudo._record(data)
         except ValidationError:  # Acknowledge the notification to avoid getting spammed
             _logger.exception("unable to handle the notification data; skipping to acknowledge")
         return Response("success", status=200)  # Acknowledge the notification
