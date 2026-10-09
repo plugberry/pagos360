@@ -61,7 +61,7 @@ class PaymentTransaction(models.Model):
     @api.constrains("amount", "currency_id", "payment_method_id", "provider_id")
     def _check_pagos360_cash_maximum_amount(self):
         """Pagos360 silently skips the coupon above its cash limit, leaving the payer stuck."""
-        maximum_amount = float(self.env["ir.config_parameter"].sudo().get_param("pagos360.cash_maximum_amount", "0"))
+        maximum_amount = self.env["ir.config_parameter"].sudo().get_float("pagos360.cash_maximum_amount", 0.0)
         if not maximum_amount:
             return
         for tx in self.filtered(lambda t: t.provider_code == "pagos360"):
@@ -517,7 +517,7 @@ class PaymentTransaction(models.Model):
             self.env.cr.commit()  # pylint: disable=invalid-commit
             if req:
                 entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE[self.token_id.pagos360_adhesion_type]
-                self._process(self.provider_code, self.simulate_webhook(entity_name, req))
+                self._record(self.simulate_webhook(entity_name, req))
                 self.env.cr.commit()  # pylint: disable=invalid-commit
         return super()._send_payment_request()
 
@@ -543,8 +543,13 @@ class PaymentTransaction(models.Model):
             }
         }
         res = self.provider_id._pagos360_make_request("card-debit-request", data=data, method="POST")
-        self.provider_reference = res.get("id")
-        self.pagos360_debit_execution_date = execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS)
+        # The request already went out: persist its reference before queuing the payment data.
+        self.with_context(payment_safe_write=True).write(
+            {
+                "provider_reference": res.get("id"),
+                "pagos360_debit_execution_date": execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS),
+            }
+        )
         return res
 
     def _pagos360_next_business_day(self, due_date, days=3):
@@ -563,8 +568,10 @@ class PaymentTransaction(models.Model):
             }
         }
         res = self.provider_id._pagos360_make_request("debit-request", data=data, method="POST")
-        self.provider_reference = res.get("id")
-        self.pagos360_debit_execution_date = execution_date
+        # The request already went out: persist its reference before queuing the payment data.
+        self.with_context(payment_safe_write=True).write(
+            {"provider_reference": res.get("id"), "pagos360_debit_execution_date": execution_date}
+        )
         return res
 
     def get_pagos360_info(self, check_payment_state=True):
@@ -581,7 +588,7 @@ class PaymentTransaction(models.Model):
                 for data in datas["data"]:
                     payload = tx.simulate_webhook(entity_name, data)
                     result_msg.append(payload)
-                    tx.sudo()._process(tx.provider_code, payload)
+                    tx.sudo()._record(payload)
                 datas = tx.provider_id._pagos360_make_request(
                     "/adhesion?external_reference=%s&page=1" % ref_sanitarzed, method="GET"
                 )
@@ -589,7 +596,7 @@ class PaymentTransaction(models.Model):
                 for data in datas["data"]:
                     payload = tx.simulate_webhook(entity_name, data)
                     result_msg.append(payload)
-                    tx.sudo()._process(tx.provider_code, payload)
+                    tx.sudo()._record(payload)
 
             # Check state of payment
             elif not tx.pagos360_adhesion_type and tx.operation != "validation":
@@ -603,7 +610,7 @@ class PaymentTransaction(models.Model):
                 data = tx._get_operation_info_from_data(tx.provider_id._pagos360_make_request(url, method="GET"))
                 payload = tx.simulate_webhook("payment_request", data)
                 result_msg.append(payload)
-                tx.sudo()._process(tx.provider_code, payload)
+                tx.sudo()._record(payload)
             # Check state of payment
             elif tx.pagos360_adhesion_type == "adhesion":
                 data = tx.provider_id._pagos360_make_request(
@@ -611,7 +618,7 @@ class PaymentTransaction(models.Model):
                 )
                 payload = tx.simulate_webhook("debit_request", data["data"][0])
                 result_msg.append(payload)
-                tx.sudo()._process(tx.provider_code, payload)
+                tx.sudo()._record(payload)
 
             elif tx.pagos360_adhesion_type == "card_adhesion":
                 data = tx.provider_id._pagos360_make_request(
@@ -619,7 +626,7 @@ class PaymentTransaction(models.Model):
                 )
                 payload = self.simulate_webhook("card_debit_request", data["data"][0])
                 result_msg.append(payload)
-                tx.sudo()._process(tx.provider_code, payload)
+                tx.sudo()._record(payload)
             self.env.cr.commit()  # pylint: disable=invalid-commit
         return self.pagos360_readable_result(result_msg)
 

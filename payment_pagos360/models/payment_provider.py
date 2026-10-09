@@ -130,7 +130,7 @@ class PaymentProvider(models.Model):
 
     @api.constrains("allow_tokenization", "pagos360_form_url")
     def _check_pagos360_form_url_required(self):
-        for provider in self.filtered(lambda p: p.code == "pagos360" and p.state in ("enabled", "test")):
+        for provider in self.filtered(lambda p: p.code == "pagos360" and p.is_live):
             if provider.allow_tokenization and not provider.pagos360_form_url:
                 raise ValidationError(
                     _("A Pagos 360 adhesion form URL is required when 'Allow Saving Payment Methods' is enabled.")
@@ -230,14 +230,14 @@ class PaymentProvider(models.Model):
 
     def _pagos360_get_api_url(self):
         self.ensure_one()
-        if self.state == "enabled":
+        if self.is_live:
             return const.API_URL
         else:
             return const.API_TEST_URL
 
     def _pagos360_get_api_key(self):
         self.ensure_one()
-        if self.state == "enabled":
+        if self.is_live:
             return self.sudo().pagos360_api_key
         else:
             return self.sudo().pagos360_test_api_key
@@ -351,13 +351,11 @@ class PaymentProvider(models.Model):
         return const.DEFAULT_PAYMENT_METHODS_CODES
 
     def write(self, values):
-        # Handle provider state changes for pagos360 before calling super
+        # Handle provider archiving for pagos360 before calling super
         providers_pagos360 = self.filtered(lambda p: p.code == "pagos360")
-        if "state" in values and providers_pagos360:
+        if values.get("active") is False and providers_pagos360:
             # Check if there are related tokens that would be archived
-            state_changed_providers = providers_pagos360.filtered(
-                lambda p: p.state in ("enabled", "test") and values["state"] == "disabled"
-            )
+            state_changed_providers = providers_pagos360.filtered("active")
             if state_changed_providers:
                 related_tokens = self.env["payment.token"].search([("provider_id", "in", state_changed_providers.ids)])
                 # Exclude test tokens from the check
@@ -373,12 +371,12 @@ class PaymentProvider(models.Model):
                         )
                     )
         res = super().write(values)
-        enabled_providers = self.filtered(lambda p: p.code == "pagos360" and p.state in ["enabled", "test"])
-        if enabled_providers:
+        enabled_providers = self.filtered(lambda p: p.code == "pagos360" and p.active)
+        if "is_live" in values and enabled_providers:
             for provider in enabled_providers:
-                if provider.state == "enabled" and not provider.pagos360_api_key:
+                if provider.is_live and not provider.pagos360_api_key:
                     raise UserError(_("You must set an API Key for PAGOS360 before enabling the provider."))
-                elif provider.state == "test" and not provider.pagos360_test_api_key:
+                elif not provider.is_live and not provider.pagos360_test_api_key:
                     raise UserError(
                         _("You must set a Test API Key for PAGOS360 before setting the provider in test mode.")
                     )

@@ -9,8 +9,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-24 18:40+0000\n"
-"PO-Revision-Date: 2025-12-22 16:10+0000\n"
+"POT-Creation-Date: 2026-10-08 19:52+0000\n"
+"PO-Revision-Date: 2026-10-08 19:52+0000\n"
 "Last-Translator: carla spiaggi <sca@adhoc.inc>\n"
 "Language-Team: Spanish <https://translation.dev-adhoc.com/projects/"
 "pagos360-19-0/pagos360-19-0-payment_pagos360/es/>\n"
@@ -28,7 +28,7 @@ msgstr ""
 msgid ""
 "%(method)s does not accept payments over %(limit)s. Please choose another "
 "payment method."
-msgstr ""
+msgstr "%(method)s no acepta pagos mayores a %(limit)s. Elija otro medio de pago."
 "%(method)s no acepta pagos superiores a %(limit)s. Por favor, elija otro "
 "método de pago."
 
@@ -38,9 +38,119 @@ msgstr ""
 msgid ""
 "%(method)s does not accept payments over %(limit)s. Please pay the invoices "
 "separately, or choose another payment method."
-msgstr ""
+msgstr "%(method)s no acepta pagos mayores a %(limit)s. Pague las facturas por separado o elija otro medio de pago."
 "%(method)s no acepta pagos superiores a %(limit)s. Por favor, pague las "
 "facturas por separado o elija otro método de pago."
+
+#. module: payment_pagos360
+#: model:ir.module.module,description:base.module_payment_pagos360
+msgid ""
+"===========================\n"
+"Payment Provider: Pagos 360\n"
+"===========================\n"
+"\n"
+"Integración del proveedor de pagos Pagos360 con el flujo de pagos de Odoo\n"
+"(solicitudes de pago / cupón, adhesiones para débito automático y webhooks).\n"
+"\n"
+"Características\n"
+"===============\n"
+"\n"
+"- Agrega Pagos360 como proveedor de pago (``code = 'pagos360'``).\n"
+"- Genera la solicitud de pago (cupón) contra la API de Pagos360, con fecha de\n"
+"  validez configurable (``validity_days``).\n"
+"- Soporte de tokenización vía adhesión: cuando se permite guardar el medio de\n"
+"  pago, redirige al formulario de adhesión de Pagos360 (``pagos360_form_url``) y\n"
+"  dispara el cobro hijo sobre el token.\n"
+"- Configuración de webhooks (alta y verificación) para los eventos de Pagos360.\n"
+"- Exclusión de medios en el cupón mediante etiquetas: el administrador\n"
+"  selecciona qué canales, cuotas y marcas de tarjeta quitar de las opciones que\n"
+"  ve el pagador. Lo seleccionado se envía a la API como ``excluded_channels``,\n"
+"  ``excluded_installments`` y ``excluded_card_brands``.\n"
+"- Canales, cuotas y marcas de tarjeta se modelan con catálogos propios: los canales\n"
+"  son un conjunto fijo; las cuotas (por número) y las marcas (nombre + código\n"
+"  numérico) se pueblan/actualizan desde la API en cada sincronización (\"Fetch\n"
+"  available methods\"), y los selectores de exclusión se acotan a lo disponible.\n"
+"- ``excluded_card_brands`` se envía con el **código numérico** que espera Pagos360\n"
+"  (ej. ``39`` = Visa), no con el nombre: la API descarta en silencio cualquier otro\n"
+"  identificador. El código no es estable, por eso se refresca desde la API en cada\n"
+"  \"Fetch available methods\".\n"
+"\n"
+"Detalles Técnicos\n"
+"=================\n"
+"\n"
+"Modelos nuevos:\n"
+"\n"
+"- ``pagos360.channel``: catálogo de canales de pago (``code`` técnico enviado a la\n"
+"  API + ``name`` legible).\n"
+"- ``pagos360.installment``: catálogo de cuotas (``number``). Se puebla desde la API\n"
+"  en la sincronización (``_get_or_create``); también soporta alta por número\n"
+"  (``name_create``).\n"
+"- ``pagos360.card.brand``: catálogo de marcas de tarjeta (``name`` + ``code``\n"
+"  numérico de Pagos360). Se puebla/actualiza desde la API en la sincronización\n"
+"  (``_upsert``, match por nombre normalizado).\n"
+"\n"
+"Modelos heredados:\n"
+"\n"
+"- ``payment.provider``: credenciales (API keys), ``pagos360_form_url``,\n"
+"  ``validity_days`` y los tres campos de exclusión\n"
+"  (``pagos360_excluded_channel_ids``, ``pagos360_excluded_installment_ids``,\n"
+"  ``pagos360_excluded_card_brand_ids``), más los métodos de API, webhooks y armado\n"
+"  de las exclusiones del cupón (``_pagos360_get_coupon_exclusions``).\n"
+"- ``payment.transaction``: armado del payload de la solicitud de pago, flujo de\n"
+"  adhesión/tokenización y cobro hijo.\n"
+"- ``payment.token``: datos de adhesión del token.\n"
+"\n"
+"Otros elementos:\n"
+"\n"
+"- Formulario del proveedor (pestaña *Fees and Due dates*) con los selectores de\n"
+"  exclusión como etiquetas (``many2many_tags``).\n"
+"- ``security/ir.model.access.csv``: accesos a los catálogos nuevos.\n"
+"- ``data/pagos360_catalog_data.xml``: canales soportados y planes de cuotas\n"
+"  habituales.\n"
+"- ``migrations/19.0.2.1.0/post-migrate.py``: convierte la configuración previa\n"
+"  (campos de texto con listas serializadas) a los nuevos Many2many.\n"
+"\n"
+"Uso\n"
+"===\n"
+"\n"
+"#. Ir a *Contabilidad/Facturación → Configuración → Proveedores de pago* y abrir\n"
+"   el proveedor Pagos360.\n"
+"#. En *Credenciales*, cargar la API key (productiva o de prueba) y habilitar el\n"
+"   proveedor.\n"
+"#. En la pestaña *Fees and Due dates*, definir los días de validez. Usar\n"
+"   *Fetch available methods* para traer de la API las cuotas y marcas que el\n"
+"   comercio tiene habilitadas; recién entonces los selectores de exclusión ofrecen\n"
+"   esas opciones (los canales son una lista fija).\n"
+"#. Seleccionar, como etiquetas, los canales, cuotas y marcas de tarjeta a excluir\n"
+"   del cupón.\n"
+"#. Usar *Ensure Webhook* para registrar o verificar el webhook en Pagos360.\n"
+"\n"
+"Arquitectura\n"
+"============\n"
+"\n"
+"El módulo extiende el framework de pagos de Odoo (``account_payment``). El\n"
+"controlador (``controllers/main.py``) expone las URLs de retorno y webhook. Al\n"
+"crear una transacción de cupón, ``payment.transaction`` arma el payload e\n"
+"incorpora las exclusiones resueltas desde los Many2many del proveedor. Las marcas\n"
+"de tarjeta se envían con el código numérico que espera Pagos360 (se guarda en el\n"
+"catálogo ``pagos360.card.brand`` desde la API); las que aún no tienen código\n"
+"—p. ej. migradas de la config vieja pero sin re-sincronizar— se omiten del payload.\n"
+"\n"
+"Dependencias\n"
+"============\n"
+"\n"
+"- ``account_payment``\n"
+"\n"
+"Autor\n"
+"=====\n"
+"\n"
+"Plugberry\n"
+"\n"
+"Licencia\n"
+"========\n"
+"\n"
+"LGPL-3\n"
+msgstr ""
 
 #. module: payment_pagos360
 #. odoo-python
@@ -48,19 +158,19 @@ msgstr ""
 msgid ""
 "A Pagos 360 adhesion form URL is required when 'Allow Saving Payment "
 "Methods' is enabled."
-msgstr ""
+msgstr "Se requiere la URL del formulario de adhesión de Pagos 360 cuando está activado 'Permitir guardar medios de pago'."
 "Se requiere una URL de formulario de adhesión de Pagos 360 cuando 'Permitir "
 "guardar métodos de pago' está habilitado."
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "Ante algún inconveniente al realizar su pago contactese a"
-msgstr "Ante algún inconveniente al realizar su pago contactese a"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_api_key
 msgid "Api Key (PAGOS360)"
-msgstr "Api Key (PAGOS360)"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_available_card_brand_ids
@@ -85,7 +195,7 @@ msgstr ""
 #. module: payment_pagos360
 #: model:ir.actions.server,name:payment_pagos360.action_pagos360_cancel_transaction
 msgid "Cancelar Transaccion (PAGOS360)"
-msgstr "Cancelar Transaccion (PAGOS360)"
+msgstr ""
 
 #. module: payment_pagos360
 #. odoo-python
@@ -103,7 +213,7 @@ msgstr "Tarjeta adherida"
 msgid ""
 "Card brands removed from the options offered to the payer on the Pagos360 "
 "coupon."
-msgstr ""
+msgstr "Marcas de tarjeta que se quitan de las opciones ofrecidas al pagador en el cupón de Pagos360."
 "Marcas de tarjeta que se quitan de las opciones ofrecidas al pagador en el "
 "cupón de Pagos360."
 
@@ -112,7 +222,7 @@ msgstr ""
 msgid ""
 "Card brands the merchant actually has enabled in Pagos360, fetched from the "
 "API. Only these can be excluded."
-msgstr ""
+msgstr "Marcas de tarjeta que el comercio tiene habilitadas en Pagos360, traídas de la API. Solo estas se pueden excluir."
 "Marcas de tarjeta que el comercio tiene realmente habilitadas en Pagos360, "
 "traídas desde la API. Solo estas se pueden excluir."
 
@@ -121,14 +231,14 @@ msgstr ""
 msgid ""
 "Channels removed from the options offered to the payer on the Pagos360 "
 "coupon."
-msgstr ""
+msgstr "Canales que se quitan de las opciones ofrecidas al pagador en el cupón de Pagos360."
 "Canales que se quitan de las opciones ofrecidas al pagador en el cupón de "
 "Pagos360."
 
 #. module: payment_pagos360
 #: model:ir.actions.server,name:payment_pagos360.action_info_from_pagos360
 msgid "Check in (PAGOS360)"
-msgstr "Check in (PAGOS360)"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__code
@@ -175,7 +285,7 @@ msgstr ""
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_debit_use_invoice_due
 msgid "Debitar al vencimiento de la factura (CBU)"
-msgstr "Debitar al vencimiento de la factura (CBU)"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__display_name
@@ -200,12 +310,12 @@ msgstr ""
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_cut_days
 msgid "Días de corte (débito en tarjeta)"
-msgstr "Días de corte (débito en tarjeta)"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_coupon_validity_days
 msgid "Días de validez del cupón (Pago Fácil / Rapipago)"
-msgstr "Días de validez del cupón (Pago Fácil / Rapipago)"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_cut_days
@@ -219,23 +329,20 @@ msgstr ""
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_debit_execution_days
 msgid ""
 "Días hábiles a esperar desde hoy para ejecutar el débito. Mínimo 3 "
-"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día "
-"hábil."
+"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día"
+" hábil."
 msgstr ""
-"Días hábiles a esperar desde hoy para ejecutar el débito. Mínimo 3 "
-"(requerimiento técnico de Pagos360). La fecha final se ajusta al próximo día "
-"hábil."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_debit_execution_days
 msgid "Días para ejecutar el débito (CBU/TC)"
-msgstr "Días para ejecutar el débito (CBU/TC)"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__pagos360_coupon_validity_days
-msgid "Días que el cliente final tiene para pagar el cupón antes de que venza."
-msgstr ""
+msgid ""
 "Días que el cliente final tiene para pagar el cupón antes de que venza."
+msgstr ""
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
@@ -266,7 +373,7 @@ msgstr "Cuotas excluidas"
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_debit_execution_date
 msgid "Fecha de débito al cliente"
-msgstr "Fecha de débito al cliente"
+msgstr ""
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_provider_form
@@ -286,7 +393,7 @@ msgstr "Traer métodos disponibles"
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__id
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__id
 msgid "ID"
-msgstr "ID"
+msgstr ""
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.rapipago_barcode_print
@@ -298,7 +405,7 @@ msgstr "Imprima este código para abonar en la red de Rapipago"
 msgid ""
 "Installments removed from the options offered to the payer on the Pagos360 "
 "coupon."
-msgstr ""
+msgstr "Cuotas que se quitan de las opciones ofrecidas al pagador en el cupón de Pagos360."
 "Cuotas que se quitan de las opciones ofrecidas al pagador en el cupón de "
 "Pagos360."
 
@@ -307,7 +414,7 @@ msgstr ""
 msgid ""
 "Installments the merchant actually has enabled in Pagos360, fetched from the "
 "API. Only these can be excluded."
-msgstr ""
+msgstr "Cuotas que el comercio tiene habilitadas en Pagos360, traídas de la API. Solo estas se pueden excluir."
 "Cuotas que el comercio tiene realmente habilitadas en Pagos360, traídas "
 "desde la API. Solo estas se pueden excluir."
 
@@ -315,7 +422,7 @@ msgstr ""
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "La validez del cupón debe ser al menos 1 día."
-msgstr "La validez del cupón debe ser al menos 1 día."
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__write_uid
@@ -355,8 +462,6 @@ msgid ""
 "Los días de ejecución del débito deben ser al menos 3 (mínimo técnico de "
 "Pagos360)."
 msgstr ""
-"Los días de ejecución del débito deben ser al menos 3 (mínimo técnico de "
-"Pagos360)."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_card_brand__name
@@ -376,7 +481,7 @@ msgid ""
 "Numeric brand code Pagos360 expects in the excluded_card_brands payload. "
 "Filled/updated from the API on each 'Fetch available methods'; the string "
 "code is ignored by the API."
-msgstr ""
+msgstr "Código numérico de la marca que Pagos360 espera en el payload excluded_card_brands. Se completa o actualiza desde la API en cada 'Fetch available methods'; la API ignora el código de texto."
 "Código numérico de marca que Pagos360 espera en el payload "
 "excluded_card_brands. Se completa/actualiza desde la API en cada 'Traer "
 "métodos disponibles'; el código de texto es ignorado por la API."
@@ -387,7 +492,7 @@ msgid ""
 "Original transaction amount preserved when the operation is converted to "
 "`validation` (adhesion flow). Used as the amount of the child online_token "
 "transaction spawned after the adhesion is signed."
-msgstr ""
+msgstr "Importe original de la transacción que se conserva cuando la operación se convierte en `validation` (flujo de adhesión). Se usa como importe de la transacción hija online_token que se genera después de firmada la adhesión."
 "Monto de la transacción original que se conserva cuando la operación se "
 "convierte en `validation` (flujo de adhesión). Se usa como monto de la "
 "transacción hija online_token que se genera luego de firmar la adhesión."
@@ -395,12 +500,12 @@ msgstr ""
 #. module: payment_pagos360
 #: model:ir.model.fields.selection,name:payment_pagos360.selection__payment_provider__code__pagos360
 msgid "PAGOS360"
-msgstr "PAGOS360"
+msgstr ""
 
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.rapipago_barcode_print
 msgid "Pagar Mediante Rapipago"
-msgstr "Pagar Mediante Rapipago"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:pagos360.channel,name:payment_pagos360.pagos360_channel_non_banking
@@ -410,7 +515,7 @@ msgstr ""
 #. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_pagofacil
 msgid "PagoFacil"
-msgstr "PagoFacil"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:pagos360.channel,name:payment_pagos360.pagos360_channel_banelco_pmc
@@ -425,7 +530,7 @@ msgstr "Monto del cargo hijo de Pagos 360"
 #. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_pagos360
 msgid "Pagos360"
-msgstr "Pagos360"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_token__pagos360_adhesion_type
@@ -500,6 +605,11 @@ msgid "Payment Provider"
 msgstr "Proveedor de pago"
 
 #. module: payment_pagos360
+#: model:ir.module.module,shortdesc:base.module_payment_pagos360
+msgid "Payment Provider: Pagos 360"
+msgstr "Proveedor de pago: Pagos 360"
+
+#. module: payment_pagos360
 #: model:ir.model,name:payment_pagos360.model_payment_token
 msgid "Payment Token"
 msgstr "Token de pago"
@@ -517,7 +627,7 @@ msgstr ""
 #. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_rapipago
 msgid "RapiPago"
-msgstr "RapiPago"
+msgstr ""
 
 #. module: payment_pagos360
 #. odoo-python
@@ -537,13 +647,9 @@ msgstr "Segundos días de validez"
 msgid ""
 "Si está activado y la transacción tiene facturas con fecha de vencimiento, "
 "el débito CBU se ejecuta el día hábil siguiente a la fecha de vencimiento "
-"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el "
-"mínimo como fallback."
+"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el"
+" mínimo como fallback."
 msgstr ""
-"Si está activado y la transacción tiene facturas con fecha de vencimiento, "
-"el débito CBU se ejecuta el día hábil siguiente a la fecha de vencimiento "
-"más próxima. Si esa fecha no supera el mínimo técnico de Pagos360, se usa el "
-"mínimo como fallback."
 
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__second_due_fees
@@ -573,7 +679,7 @@ msgstr "Código técnico enviado a la API de Pagos360 (ej. 'banelco_pmc')."
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_test_api_key
 msgid "Test Api Key (PAGOS360)"
-msgstr "Test Api Key (PAGOS360)"
+msgstr ""
 
 #. module: payment_pagos360
 #: model:ir.model.constraint,message:payment_pagos360.constraint_pagos360_card_brand_name_uniq
@@ -606,7 +712,7 @@ msgstr "El código técnico de este proveedor de pagos."
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid ""
 "Transaction %s cannot be charged: its payment token has no adhesion type."
-msgstr ""
+msgstr "La transacción %s no se puede cobrar: su token de pago no tiene tipo de adhesión."
 
 #. module: payment_pagos360
 #: model:pagos360.channel,name:payment_pagos360.pagos360_channel_wire_transfer
@@ -616,7 +722,7 @@ msgstr ""
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "Usted será redirigido al sitio web de PAGOS360."
-msgstr "Usted será redirigido al sitio web de PAGOS360."
+msgstr ""
 
 #. module: payment_pagos360
 #. odoo-python
@@ -624,7 +730,7 @@ msgstr "Usted será redirigido al sitio web de PAGOS360."
 msgid ""
 "You have active tokens in PAGOS360. You must archive them before. IMPORTANT: "
 "This action will also disable tokens in PAGOS360."
-msgstr ""
+msgstr "Tiene tokens activos en PAGOS360. Debe archivarlos antes. IMPORTANTE: esta acción también desactiva los tokens en PAGOS360."
 "Tiene tokens activos en PAGOS360. Debe archivarlos antes. IMPORTANTE: Esta "
 "acción también deshabilitará los tokens en PAGOS360."
 
@@ -634,7 +740,7 @@ msgstr ""
 msgid ""
 "You must set a Test API Key for PAGOS360 before setting the provider in test "
 "mode."
-msgstr ""
+msgstr "Debe cargar una Test API Key de PAGOS360 antes de poner el proveedor en modo de prueba."
 "Debe configurar una Test API Key para PAGOS360 antes de poner el proveedor "
 "en modo de prueba."
 
@@ -642,7 +748,7 @@ msgstr ""
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_provider.py:0
 msgid "You must set an API Key for PAGOS360 before enabling the provider."
-msgstr ""
+msgstr "Debe cargar una API Key de PAGOS360 antes de habilitar el proveedor."
 "Debe configurar una API Key para PAGOS360 antes de habilitar el proveedor."
 
 #. module: payment_pagos360
@@ -680,7 +786,7 @@ msgstr "Su pago fue procesado."
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "hola@pagos360.com"
-msgstr "hola@pagos360.com"
+msgstr ""
 
 #. module: payment_pagos360
 #. odoo-python
