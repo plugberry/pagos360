@@ -1,6 +1,7 @@
 import logging
 
-from odoo import api, models
+from odoo import _, api, models
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
@@ -24,6 +25,45 @@ class PaymentTransaction(models.Model):
                 _logger.warning("Invalid reference format: %s", reference)
                 return False, False
         return False, False
+
+    def _pagos360_get_barcode_paid_amount(self, provider, invoice, payment_data):
+        """Amount collected for a paid barcode request: `request_result` of the payment request.
+
+        The notice carries no amount, the invoice may already be settled when it arrives, and
+        `first_total` is what was requested, not what was paid.
+        """
+        payload = payment_data.setdefault("payload", {})
+        request_result = payload.get("request_result")
+        if not request_result:
+            response = provider._pagos360_make_request(
+                "/payment-request?id=%s" % payment_data.get("entity_id"), method="GET"
+            )
+            request_data = response.get("data", response) if isinstance(response, dict) else {}
+            if isinstance(request_data, list):
+                request_data = next(
+                    (
+                        data
+                        for data in request_data
+                        if data.get("external_reference") == payload.get("external_reference")
+                    ),
+                    request_data[0] if request_data else {},
+                )
+            request_result = request_data.get("request_result")
+        if isinstance(request_result, dict):
+            request_result = [request_result]
+        # Keep it on the payload so the amount check and the paid_at lookup do not hit the API again.
+        payload["request_result"] = request_result or []
+        amount = sum(result.get("amount") or 0.0 for result in (request_result or []) if isinstance(result, dict))
+        if invoice.currency_id.compare_amounts(amount, 0.0) <= 0:
+            message = _(
+                "Pagos360 reported this invoice as paid (payment request %s) but did not return"
+                " the amount collected, so no payment was registered. Check the payment request"
+                " in Pagos360 and register the payment manually.",
+                payment_data.get("entity_id"),
+            )
+            invoice.message_post(body=message)
+            raise ValidationError("PAGOS360: " + message)
+        return amount
 
     @api.model
     def _search_by_reference(self, provider_code, payment_data):
@@ -62,10 +102,11 @@ class PaymentTransaction(models.Model):
                     ._get_compatible_payment_methods(provider.ids, invoice.partner_id.id)
                     .filtered(lambda x: x.code == "pagofacil")
                 )
+                amount = self._pagos360_get_barcode_paid_amount(provider, invoice, payment_data)
                 tx_vals = {
                     "reference": external_reference,
                     "provider_reference": payment_data.get("entity_id"),
-                    "amount": abs(invoice.pagos360_barcode_amount),
+                    "amount": amount,
                     "currency_id": invoice.currency_id.id,
                     "partner_id": invoice.partner_id.commercial_partner_id.id,
                     "provider_id": provider.id,
