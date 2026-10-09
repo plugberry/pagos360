@@ -12,7 +12,7 @@ class TestDebitReference(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.payment_method = cls.env.ref("payment_pagos360.payment_method_pagos360")
         cls.currency = cls.env.company.currency_id
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
@@ -46,7 +46,7 @@ class TestDebitReference(TransactionCase):
 
     def test_paid_card_debit_sets_done_and_effective_date_from_payload(self):
         tx = self._make_tx(self._make_token("card_adhesion"))
-        tx._set_pending()
+        tx.with_context(payment_safe_write=True)._set_pending()
         payload = {
             "entity_name": "card_debit_request",
             "entity_id": "121048091",
@@ -61,7 +61,7 @@ class TestDebitReference(TransactionCase):
         }
         # The paid_at must come from the payload; no API round-trip needed.
         with patch.object(type(self.provider), "_pagos360_make_request", side_effect=AssertionError("API hit")):
-            tx._apply_updates(payload)
+            tx.with_context(payment_safe_write=True)._apply_updates(payload)
         self.assertEqual(tx.state, "done")
         self.assertEqual(str(tx.pagos360_effective_payment_date), "2026-07-15")
 
@@ -87,6 +87,7 @@ class TestDebitReference(TransactionCase):
                     }
                 )
                 debit_tx = self._make_tx(token)
+                debit_tx = debit_tx.with_context(payment_safe_write=True)
                 debit_tx.write({"provider_reference": str(debit_id)})
                 debit_tx._set_pending()
                 # Shape of a real notification: debits have no external_reference of their own,
@@ -104,7 +105,9 @@ class TestDebitReference(TransactionCase):
                 Transaction = self.env["payment.transaction"]
                 self.assertEqual(Transaction._search_by_reference("pagos360", payment_data), debit_tx)
                 with patch.object(type(self.provider), "_pagos360_make_request", return_value={}):
-                    Transaction._process("pagos360", payment_data)
+                    Transaction._search_by_reference("pagos360", payment_data).with_context(
+                        payment_safe_write=True
+                    )._process(payment_data)
                 self.assertEqual(debit_tx.state, "done")
                 self.assertEqual(adhesion_tx.state, "done")
                 self.assertEqual(adhesion_tx.provider_reference, adhesion_provider_reference)
