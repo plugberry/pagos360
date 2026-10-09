@@ -19,7 +19,7 @@ class TestErrorToPending(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.payment_method = cls.env.ref("payment_pagos360.payment_method_pagos360")
         cls.currency = cls.env.company.currency_id
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
@@ -38,7 +38,9 @@ class TestErrorToPending(TransactionCase):
             }
         )
         if state == "error":
-            tx._set_error("PAGOS360: previous notification could not be processed")
+            tx.with_context(payment_safe_write=True)._set_error(
+                "PAGOS360: previous notification could not be processed"
+            )
             self.assertEqual(tx.state, "error")
         return tx
 
@@ -63,11 +65,21 @@ class TestErrorToPending(TransactionCase):
                 pass
             else:
                 self.fail("get_pagos360_info should end raising its readable result")
+        # In 20 the action only queues the payment data; the cron is what applies it.
+        self._run_processing()
+
+    def _run_processing(self):
+        """Apply the payment data queued by `_record`, as the processing cron does."""
+        for payment_data in self.env["payment.data"].sudo().search([("errored", "=", False)]):
+            payment_data.transaction_id.with_context(payment_safe_write=True)._process(payment_data.payload)
+            payment_data.unlink()
 
     def _process(self, tx, state):
         payload = tx.simulate_webhook("payment_request", self._pagos360_data(tx, state))
         with patch.object(type(self.provider), "_pagos360_make_request", return_value={}):
-            self.env["payment.transaction"].sudo()._process("pagos360", payload)
+            Transaction = self.env["payment.transaction"].sudo()
+            tx = Transaction._search_by_reference("pagos360", payload)
+            tx.with_context(payment_safe_write=True)._process(payload)
 
     # --- the fix -----------------------------------------------------------------------
 
@@ -98,6 +110,6 @@ class TestErrorToPending(TransactionCase):
     @mute_logger("odoo.addons.payment.models.payment_transaction")
     def test_done_transaction_is_not_moved_back_to_pending(self):
         tx = self._make_tx()
-        tx._set_done()
+        tx.with_context(payment_safe_write=True)._set_done()
         self._process(tx, "pending")
         self.assertEqual(tx.state, "done")
