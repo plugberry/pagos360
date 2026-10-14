@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 19.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-24 18:40+0000\n"
-"PO-Revision-Date: 2026-09-24 18:40+0000\n"
+"POT-Creation-Date: 2026-10-14 16:21+0000\n"
+"PO-Revision-Date: 2026-10-14 16:21+0000\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -457,6 +457,20 @@ msgstr ""
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid ""
+"Pagos360 reports transaction %(reference)s as %(event)s on %(date)s (id "
+"%(row_id)s), but it is %(state)s in Odoo. Please review it before charging "
+"again."
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.actions.server,name:payment_pagos360.ir_cron_pagos360_collection_control_ir_actions_server
+msgid "Pagos360: Daily Collection Control"
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "Payment %s"
 msgstr ""
 
@@ -483,6 +497,11 @@ msgstr ""
 #. module: payment_pagos360
 #: model:payment.method,name:payment_pagos360.payment_method_rapipago
 msgid "RapiPago"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.actions.server,name:payment_pagos360.action_pagos360_collection_control
+msgid "Run Collection Control (PAGOS360)"
 msgstr ""
 
 #. module: payment_pagos360
@@ -565,6 +584,20 @@ msgstr ""
 
 #. module: payment_pagos360
 #. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid "There is no Pagos360 provider enabled or in test mode."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid ""
+"Transaction %(reference)s is still %(state)s in Odoo after its last check "
+"against Pagos360 on %(date)s. Please review it in Pagos360."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid ""
 "Transaction %s cannot be charged: its payment token has no adhesion type."
@@ -637,6 +670,24 @@ msgstr ""
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "hola@pagos360.com"
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "paid"
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "reverted"
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "signed"
 msgstr ""
 
 #. module: payment_pagos360
