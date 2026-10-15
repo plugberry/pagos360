@@ -26,7 +26,12 @@ class PaymentTransaction(models.Model):
 
     pagos360_adhesion_type = fields.Selection(related="token_id.pagos360_adhesion_type", store=True)
     pagos360_effective_payment_date = fields.Date()
-    pagos360_debit_execution_date = fields.Date(string="Fecha de débito al cliente", readonly=True)
+    pagos360_debit_execution_date = fields.Date(
+        string="Fecha prevista (según configuración)",
+        readonly=True,
+        help="Calculada por Odoo con los días de ejecución o de corte del proveedor. "
+        "No es un dato informado por Pagos360.",
+    )
     pagos360_child_amount = fields.Float(
         string="Pagos 360 Child Charge Amount",
         help="Original transaction amount preserved when the operation is converted to "
