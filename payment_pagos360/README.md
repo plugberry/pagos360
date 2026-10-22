@@ -104,7 +104,7 @@ Campos adicionales:
 |---|---|
 | `pagos360_adhesion_type` | Tipo de adhesión (related desde token) |
 | `pagos360_effective_payment_date` | Fecha efectiva usada al registrar el pago contable |
-| `pagos360_debit_execution_date` | Fecha de débito al cliente (calculada al crear el débito) |
+| `pagos360_debit_execution_date` | Fecha prevista (según configuración): calculada por Odoo al crear el débito, no informada por Pagos360 |
 | `pagos360_child_amount` | Monto original preservado en el flujo de adhesión |
 
 ---
