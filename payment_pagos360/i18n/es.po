@@ -491,6 +491,23 @@ msgstr "Canal de pago de Pagos360"
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid ""
+"Pagos360 reports transaction %(reference)s as %(event)s on %(date)s (id "
+"%(row_id)s), but it is %(state)s in Odoo. Please review it before charging "
+"again."
+msgstr ""
+"Pagos360 informa la transacción %(reference)s como %(event)s el %(date)s "
+"(id %(row_id)s), pero en Odoo está en estado %(state)s. Por favor, "
+"revísela antes de volver a cobrarla."
+
+#. module: payment_pagos360
+#: model:ir.actions.server,name:payment_pagos360.ir_cron_pagos360_collection_control_ir_actions_server
+msgid "Pagos360: Daily Collection Control"
+msgstr "Pagos360: Control diario de cobranzas"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "Payment %s"
 msgstr "Pago %s"
 
@@ -518,6 +535,11 @@ msgstr ""
 #: model:payment.method,name:payment_pagos360.payment_method_rapipago
 msgid "RapiPago"
 msgstr "RapiPago"
+
+#. module: payment_pagos360
+#: model:ir.actions.server,name:payment_pagos360.action_pagos360_collection_control
+msgid "Run Collection Control (PAGOS360)"
+msgstr "Ejecutar control de cobranzas (PAGOS360)"
 
 #. module: payment_pagos360
 #. odoo-python
@@ -603,6 +625,23 @@ msgstr "El código técnico de este proveedor de pagos."
 
 #. module: payment_pagos360
 #. odoo-python
+#: code:addons/payment_pagos360/models/payment_provider.py:0
+msgid "There is no Pagos360 provider enabled or in test mode."
+msgstr "No hay ningún proveedor de Pagos360 habilitado o en modo de prueba."
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid ""
+"Transaction %(reference)s is still %(state)s in Odoo after its last check "
+"against Pagos360 on %(date)s. Please review it in Pagos360."
+msgstr ""
+"La transacción %(reference)s sigue en estado %(state)s en Odoo después de "
+"su último control contra Pagos360 el %(date)s. Por favor, revísela en "
+"Pagos360."
+
+#. module: payment_pagos360
+#. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid ""
 "Transaction %s cannot be charged: its payment token has no adhesion type."
@@ -681,6 +720,24 @@ msgstr "Su pago fue procesado."
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "hola@pagos360.com"
 msgstr "hola@pagos360.com"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "paid"
+msgstr "pagada"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "reverted"
+msgstr "revertida"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "signed"
+msgstr "firmada"
 
 #. module: payment_pagos360
 #. odoo-python
