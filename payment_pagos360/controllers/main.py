@@ -119,8 +119,14 @@ class Pagos360Controller(portal.CustomerPortal):
             if data and data.get("payload") == WEBHOOK_TEST_PAYLOAD:
                 _logger.warning("Webhook URL is OK")
                 return Response("success", status=200)
-            data["from_webhook"] = True
-            request.env["payment.transaction"].sudo()._process("pagos360", data)
+            # A notification only says that something changed; its `type` is what Pagos360
+            # thought when it fired it, not proof of the current state. Find the transaction
+            # the notification points at and read its real state back from the API, then
+            # process that. A forged notification can at most trigger a read that returns
+            # the real state, so it cannot mark a charge as paid.
+            tx_sudo = request.env["payment.transaction"].sudo()._search_by_reference("pagos360", data)
+            if tx_sudo:
+                tx_sudo._pagos360_fetch_and_process_transaction()
         except ValidationError:  # Acknowledge the notification to avoid getting spammed
             _logger.exception("unable to handle the notification data; skipping to acknowledge")
         return Response("success", status=200)  # Acknowledge the notification
