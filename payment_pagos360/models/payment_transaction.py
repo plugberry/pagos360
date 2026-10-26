@@ -67,7 +67,7 @@ class PaymentTransaction(models.Model):
     @api.constrains("amount", "currency_id", "payment_method_id", "provider_id")
     def _check_pagos360_cash_maximum_amount(self):
         """Pagos360 silently skips the coupon above its cash limit, leaving the payer stuck."""
-        maximum_amount = float(self.env["ir.config_parameter"].sudo().get_param("pagos360.cash_maximum_amount", "0"))
+        maximum_amount = self.env["ir.config_parameter"].sudo().get_float("pagos360.cash_maximum_amount", 0.0)
         if not maximum_amount:
             return
         for tx in self.filtered(lambda t: t.provider_code == "pagos360"):
@@ -523,7 +523,7 @@ class PaymentTransaction(models.Model):
             self.env.cr.commit()  # pylint: disable=invalid-commit
             if req:
                 entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE[self.token_id.pagos360_adhesion_type]
-                self._process(self.provider_code, self.simulate_webhook(entity_name, req))
+                self._record(self.simulate_webhook(entity_name, req))
                 self.env.cr.commit()  # pylint: disable=invalid-commit
         return super()._send_payment_request()
 
@@ -549,8 +549,13 @@ class PaymentTransaction(models.Model):
             }
         }
         res = self.provider_id._pagos360_make_request("card-debit-request", data=data, method="POST")
-        self.provider_reference = res.get("id")
-        self.pagos360_debit_execution_date = execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS)
+        # The request already went out: persist its reference before queuing the payment data.
+        self.with_context(payment_safe_write=True).write(
+            {
+                "provider_reference": res.get("id"),
+                "pagos360_debit_execution_date": execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS),
+            }
+        )
         return res
 
     def _pagos360_next_business_day(self, due_date, days=3):
@@ -569,8 +574,10 @@ class PaymentTransaction(models.Model):
             }
         }
         res = self.provider_id._pagos360_make_request("debit-request", data=data, method="POST")
-        self.provider_reference = res.get("id")
-        self.pagos360_debit_execution_date = execution_date
+        # The request already went out: persist its reference before queuing the payment data.
+        self.with_context(payment_safe_write=True).write(
+            {"provider_reference": res.get("id"), "pagos360_debit_execution_date": execution_date}
+        )
         return res
 
     def _pagos360_fetch_and_process_transaction(self):
@@ -603,8 +610,26 @@ class PaymentTransaction(models.Model):
             payload = self.simulate_webhook(entity_name, data)
             if payload:
                 payloads.append(payload)
-                self.sudo()._process(self.provider_code, payload)
+                self.sudo()._record(payload)
         return payloads
+
+    def _pagos360_process_recorded_data(self):
+        """Process now the payment data that `_record` queued for this transaction, as the processing cron does.
+
+        A transaction locked by someone else is left to the cron.
+        """
+        self.ensure_one()
+        txs_to_lock = self | self.source_transaction_id
+        if txs_to_lock.try_lock_for_update() != txs_to_lock:
+            return
+        pending = (
+            self.env["payment.data"]
+            .sudo()
+            .search([("transaction_id", "=", self.id), ("errored", "=", False)], order="id")
+        )
+        for payment_data in pending:
+            self.with_context(payment_safe_write=True)._process(payment_data.payload)
+            payment_data.unlink()
 
     def get_pagos360_info(self, check_payment_state=True):
         result_msg = []
@@ -630,7 +655,7 @@ class PaymentTransaction(models.Model):
 
         Providers in test mode share the sandbox account, so they only run it by hand.
         """
-        for provider in self.env["payment.provider"].search([("code", "=", "pagos360"), ("state", "=", "enabled")]):
+        for provider in self.env["payment.provider"].search([("code", "=", "pagos360"), ("is_live", "=", True)]):
             self._pagos360_collection_control(provider)
 
     @api.model
@@ -645,7 +670,7 @@ class PaymentTransaction(models.Model):
         :rtype: str
         """
         day = provider._pagos360_get_control_date()
-        max_errors = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.control_max_consecutive_errors", 5))
+        max_errors = self.env["ir.config_parameter"].sudo().get_int("pagos360.control_max_consecutive_errors", 5)
         prefix = "PAGOS360 CONTROL provider %s day %s: " % (provider.id, day)
         stats = Counter()
         errors_in_a_row = 0
@@ -655,6 +680,9 @@ class PaymentTransaction(models.Model):
             nonlocal errors_in_a_row
             try:
                 payloads = tx._pagos360_fetch_and_process_transaction()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+                # The control decides on the resulting state, so it cannot wait for the processing cron.
+                tx._pagos360_process_recorded_data()
                 self.env.cr.commit()  # pylint: disable=invalid-commit
             except Exception:
                 self.env.cr.rollback()
@@ -666,6 +694,14 @@ class PaymentTransaction(models.Model):
                 return False
             errors_in_a_row = 0
             stats["failed"] += not payloads
+            try:
+                (tx | tx.source_transaction_id)._post_process_with_lock()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+            except Exception:
+                # As the processing cron does: it never undoes the processing, the post-processing cron retries it.
+                self.env.cr.rollback()
+                _logger.warning(prefix + "the post-processing of %s failed.", tx.reference, exc_info=True)
+                self.env.ref("payment.post_processing_cron")._trigger()
             return bool(payloads)
 
         try:
@@ -703,7 +739,7 @@ class PaymentTransaction(models.Model):
                 if len(tx) != 1:
                     stats["ambiguous" if tx else "unmatched"] += 1
                     # The sandbox account is shared by every test database.
-                    level = logging.INFO if not tx and provider.state == "test" else logging.WARNING
+                    level = logging.INFO if not tx and not provider.is_live else logging.WARNING
                     _logger.log(level, prefix + "%s matches %s transactions.", row_label, len(tx))
                     continue
                 touched |= tx
@@ -773,7 +809,7 @@ class PaymentTransaction(models.Model):
             ],
             order="create_date, id",
         ).filtered(lambda tx: tx._pagos360_get_control_due_date() in due_days)
-        max_checks = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.control_max_checks", 50))
+        max_checks = self.env["ir.config_parameter"].sudo().get_int("pagos360.control_max_checks", 50)
         state_labels = dict(self._fields["state"]._description_selection(self.env))
         if len(due) > max_checks:
             stats["over_limit"] = len(due) - max_checks

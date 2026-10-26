@@ -3,7 +3,7 @@
 
     <record id="payment_provider_pagos360" model="payment.provider">
         <field name="name">Credit &amp; Debit Card (powered by Pagos360)</field>
-        <field name="image_128" type="base64" file="payment_pagos360/static/description/icon.jpeg"/>
+        <field name="image_128" type="bytes" file="payment_pagos360/static/description/icon.jpeg"/>
         <field name="module_id" ref="base.module_payment_pagos360"/>
         <field name="code">pagos360</field>
         <field name="redirect_form_view_id" ref="redirect_form"/>
@@ -12,12 +12,6 @@
         <field name="support_manual_capture">partial</field>
         <!-- <field name="express_checkout_form_view_id" ref="express_checkout_form"/>
         <field name="allow_express_checkout">True</field> -->
-        <field name="payment_method_ids"
-               eval="[Command.set([
-                   ref('payment_pagos360.payment_method_pagos360'),
-                   ref('payment_pagos360.payment_method_pagofacil'),
-                   ref('payment_pagos360.payment_method_rapipago'),
-               ])]"/>
     </record>
 
 </odoo>
