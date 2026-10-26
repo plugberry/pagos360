@@ -43,7 +43,13 @@ class TestCollectionControl(TransactionCase):
                 **values,
             }
         )
-        {"pending": tx._set_pending, "done": tx._set_done, "cancel": tx._set_canceled, "draft": lambda: None}[state]()
+        safe_tx = tx.with_context(payment_safe_write=True)
+        {
+            "pending": safe_tx._set_pending,
+            "done": safe_tx._set_done,
+            "cancel": safe_tx._set_canceled,
+            "draft": lambda: None,
+        }[state]()
         if created_on:
             # create_date comes from the database clock, which freeze_time does not reach. Midday in Argentina.
             tx.flush_recordset()
@@ -96,7 +102,15 @@ class TestCollectionControl(TransactionCase):
             patch.object(self.env.cr, "rollback", lambda: None),
         ):
             summary = self.Transaction._pagos360_collection_control(self.provider)
+            # The child charge of a signed adhesion is only queued; the processing cron applies it.
+            self._run_processing()
         return summary, checked
+
+    def _run_processing(self):
+        """Apply the payment data queued by `_record`, as the processing cron does."""
+        for payment_data in self.env["payment.data"].sudo().search([("errored", "=", False)]):
+            payment_data.transaction_id.with_context(payment_safe_write=True)._process(payment_data.payload)
+            payment_data.unlink()
 
     def _paid(self, entity_id, reference):
         paid_at = "%sT10:00:00-03:00" % self.day
@@ -119,7 +133,7 @@ class TestCollectionControl(TransactionCase):
         debit = self._make_tx("offline", token_id=self.token.id, provider_reference="1002")
         other_debit = self._make_tx("offline", token_id=self.token.id, provider_reference="1003")
         reverted = self._make_tx(state="done", provider_reference="1004")
-        reverted._post_process()
+        reverted.with_context(payment_safe_write=True)._post_process()
         signed = self._make_tx("validation", state="draft", tokenize=True, pagos360_child_amount=750.0)
         signed_row = {
             "id": 3001,
@@ -156,7 +170,6 @@ class TestCollectionControl(TransactionCase):
         )
 
         with self.subTest("cobro sin aviso: queda confirmado, con su pago a la fecha de Pagos360"):
-            pending._post_process()
             self.assertEqual((pending.state, pending.payment_id.date), ("done", self.day))
         with self.subTest("débito: se cruza por su id, no por la referencia de la adhesión"):
             self.assertEqual((debit.state, other_debit.state, adhesion.state), ("done", "pending", "done"))
@@ -239,7 +252,7 @@ class TestCollectionControl(TransactionCase):
             self.assertIn("unresolved=8", summary)
 
         with self.subTest("con N errores seguidos el control corta y deja un error"):
-            self.env["ir.config_parameter"].sudo().set_param("pagos360.control_max_consecutive_errors", 2)
+            self.env["ir.config_parameter"].sudo().set_int("pagos360.control_max_consecutive_errors", 2)
             summary, checked = self._run_control(fail_checks=True)
             self.assertEqual(len(checked), 2)
             self.assertIn("aborted=1", summary)
