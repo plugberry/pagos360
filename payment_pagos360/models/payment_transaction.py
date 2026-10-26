@@ -613,6 +613,24 @@ class PaymentTransaction(models.Model):
                 self.sudo()._record(payload)
         return payloads
 
+    def _pagos360_process_recorded_data(self):
+        """Process now the payment data that `_record` queued for this transaction, as the processing cron does.
+
+        A transaction locked by someone else is left to the cron.
+        """
+        self.ensure_one()
+        txs_to_lock = self | self.source_transaction_id
+        if txs_to_lock.try_lock_for_update() != txs_to_lock:
+            return
+        pending = (
+            self.env["payment.data"]
+            .sudo()
+            .search([("transaction_id", "=", self.id), ("errored", "=", False)], order="id")
+        )
+        for payment_data in pending:
+            self.with_context(payment_safe_write=True)._process(payment_data.payload)
+            payment_data.unlink()
+
     def get_pagos360_info(self, check_payment_state=True):
         result_msg = []
         for tx in self.filtered(lambda x: x.provider_code == "pagos360"):
@@ -652,7 +670,7 @@ class PaymentTransaction(models.Model):
         :rtype: str
         """
         day = provider._pagos360_get_control_date()
-        max_errors = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.control_max_consecutive_errors", 5))
+        max_errors = self.env["ir.config_parameter"].sudo().get_int("pagos360.control_max_consecutive_errors", 5)
         prefix = "PAGOS360 CONTROL provider %s day %s: " % (provider.id, day)
         stats = Counter()
         errors_in_a_row = 0
@@ -662,6 +680,9 @@ class PaymentTransaction(models.Model):
             nonlocal errors_in_a_row
             try:
                 payloads = tx._pagos360_fetch_and_process_transaction()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+                # The control decides on the resulting state, so it cannot wait for the processing cron.
+                tx._pagos360_process_recorded_data()
                 self.env.cr.commit()  # pylint: disable=invalid-commit
             except Exception:
                 self.env.cr.rollback()
@@ -673,6 +694,14 @@ class PaymentTransaction(models.Model):
                 return False
             errors_in_a_row = 0
             stats["failed"] += not payloads
+            try:
+                (tx | tx.source_transaction_id)._post_process_with_lock()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+            except Exception:
+                # As the processing cron does: it never undoes the processing, the post-processing cron retries it.
+                self.env.cr.rollback()
+                _logger.warning(prefix + "the post-processing of %s failed.", tx.reference, exc_info=True)
+                self.env.ref("payment.post_processing_cron")._trigger()
             return bool(payloads)
 
         try:
@@ -780,7 +809,7 @@ class PaymentTransaction(models.Model):
             ],
             order="create_date, id",
         ).filtered(lambda tx: tx._pagos360_get_control_due_date() in due_days)
-        max_checks = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.control_max_checks", 50))
+        max_checks = self.env["ir.config_parameter"].sudo().get_int("pagos360.control_max_checks", 50)
         state_labels = dict(self._fields["state"]._description_selection(self.env))
         if len(due) > max_checks:
             stats["over_limit"] = len(due) - max_checks

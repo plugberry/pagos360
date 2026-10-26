@@ -61,8 +61,18 @@ class TestCheckIn(TransactionCase):
             try:
                 tx.get_pagos360_info()
             except UserError as error:
-                return calls, str(error)
-        self.fail("get_pagos360_info() did not report its result")
+                result = str(error)
+            else:
+                self.fail("get_pagos360_info() did not report its result")
+            # In 20 the check in only queues the payment data; the cron is what applies it.
+            self._run_processing()
+        return calls, result
+
+    def _run_processing(self):
+        """Apply the payment data queued by `_record`, as the processing cron does."""
+        for payment_data in self.env["payment.data"].sudo().search([("errored", "=", False)]):
+            payment_data.transaction_id.with_context(payment_safe_write=True)._process(payment_data.payload)
+            payment_data.unlink()
 
     def test_reference_lookup_is_stripped_and_dated(self):
         tx = self._make_tx()
@@ -117,7 +127,7 @@ class TestCheckIn(TransactionCase):
         with patch.object(type(self.provider), "_pagos360_make_request", autospec=True, side_effect=fake_request):
             tx = self._make_tx()
             for provider_reference in (False, str(REQUEST_ID)):
-                tx.provider_reference = provider_reference
+                tx.with_context(payment_safe_write=True).write({"provider_reference": provider_reference})
                 result = tx._pagos360_get_payment_request(from_date=from_date, to_date=to_date)
                 self.assertEqual(result["id"], REQUEST_ID)
                 self.assertTrue(calls[-1].endswith(expected))
