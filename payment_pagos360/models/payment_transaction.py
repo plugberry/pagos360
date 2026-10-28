@@ -33,6 +33,7 @@ class PaymentTransaction(models.Model):
         "`validation` (adhesion flow). Used as the amount of the child "
         "online_token transaction spawned after the adhesion is signed.",
     )
+    pagos360_provider_is_live = fields.Boolean(related="provider_id.is_live")
 
     @api.model
     def _get_specific_create_values(self, provider_code, values):
@@ -979,3 +980,79 @@ class PaymentTransaction(models.Model):
             _logger.warning("No data recieved")
             return
         return {"entity_name": entity_name, "entity_id": data["id"], "type": data["state"], "payload": data}
+
+    # === SIMULATION (TEST MODE) === #
+
+    def action_pagos360_simulate_paid(self):
+        return self._pagos360_simulate_notification("paid")
+
+    def action_pagos360_simulate_rejected(self):
+        return self._pagos360_simulate_notification("rejected")
+
+    def action_pagos360_simulate_reverted(self):
+        return self._pagos360_simulate_notification("reverted")
+
+    def _pagos360_simulate_notification(self, status):
+        """Process a notification built locally, as if Pagos360 had sent it, then post-process.
+
+        The sandbox signs adhesions but never collects a debit or a coupon, so a test base
+        cannot otherwise reach what happens when the money comes in or goes back.
+
+        :param str status: `paid`, `rejected` or `reverted`.
+        :return: A sticky notification that says the post-processing was called.
+        :rtype: dict
+        """
+        self.ensure_one()
+        if self.provider_code != "pagos360" or self.provider_id.is_live:
+            raise UserError(_("Pagos360 notifications can only be simulated with the provider in test mode."))
+        if self.operation == "validation":
+            raise UserError(_("Adhesions are signed in the Pagos360 sandbox; only charges can be simulated."))
+        status_label = {"paid": _("paid"), "rejected": _("rejected"), "reverted": _("reverted")}[status]
+        allowed_states = ("done",) if status == "reverted" else ("draft", "pending")
+        if self.state not in allowed_states:
+            raise UserError(
+                _(
+                    "Transaction %(reference)s cannot be simulated as %(status)s.",
+                    reference=self.reference,
+                    status=status_label,
+                )
+            )
+
+        data = {
+            "id": self.provider_reference or self.reference,
+            "state": status,
+            "external_reference": self.reference,
+        }
+        if status == "paid":
+            # Carry the amount where `_extract_amount_data` reads it, so the core amount check runs.
+            data["paid_at"] = fields.Datetime.to_string(fields.Datetime.now())
+            if self.pagos360_adhesion_type == "adhesion":
+                data["first_total"] = self.amount
+            elif self.pagos360_adhesion_type == "card_adhesion":
+                data["amount"] = self.amount
+            else:
+                data["request_result"] = [{"amount": self.amount, "paid_at": data["paid_at"]}]
+        elif status == "reverted" and self.pagos360_effective_payment_date:
+            data["paid_at"] = fields.Date.to_string(self.pagos360_effective_payment_date)
+        entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE.get(self.pagos360_adhesion_type, "payment_request")
+
+        # Nothing was sent to Pagos360; safe to replay
+        self.with_context(payment_safe_write=True)._process(self.simulate_webhook(entity_name, data))
+        # Post-process now instead of waiting for the cron, as payment_demo does
+        self._try_post_process()
+
+        if self.state == "done" and not self.is_post_processed:
+            message = _("The post-processing failed and was left to the cron; see the server log.")
+        else:
+            message = _("The post-processing was called right away, without waiting for the cron.")
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": _("Simulated Pagos360 notification: %s", status_label),
+                "message": message,
+                "sticky": True,
+                "type": "warning" if self.state == "done" and not self.is_post_processed else "info",
+                "next": {"type": "ir.actions.client", "tag": "soft_reload"},
+            },
+        }

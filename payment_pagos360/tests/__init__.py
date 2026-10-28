@@ -6,5 +6,6 @@ from . import test_error_to_pending
 from . import test_force_adhesion
 from . import test_provider_credentials
 from . import test_send_payment_request
+from . import test_simulate_notification
 from . import test_webhook_amount
 from . import test_webhook_forgery
