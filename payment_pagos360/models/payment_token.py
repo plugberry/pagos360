@@ -19,6 +19,7 @@ class PaymentToken(models.Model):
     pagos360_card = fields.Char()
     pagos360_card_number = fields.Char()
 
+<<<<<<< b49e82941a513aaad2998782d148b24af6d888b0
     @api.depends(
         "payment_details",
         "create_date",
@@ -39,6 +40,24 @@ class PaymentToken(models.Model):
                 token.display_name = (
                     f"Debito automático en CBU: {token.pagos360_bank} ****{token.pagos360_cbu_number[-5:]}"
                 )
+||||||| 41a4f01ee5b76b6471ea2069c38f9be90e93e061
+    def _build_display_name(self, *args, max_length=34, should_pad=True, **kwargs):
+        if self.provider_code != "pagos360":
+            return super()._build_display_name(*args, max_length=max_length, should_pad=should_pad, **kwargs)
+        else:
+            if self.pagos360_adhesion_type == "card_adhesion":
+                display_name = f"Debito automático en Tarjeta: {self.pagos360_card} **** - {self.pagos360_card_number}"
+            elif self.pagos360_adhesion_type == "adhesion":
+                display_name = f"Debito automático en CBU: {self.pagos360_bank} ****{self.pagos360_cbu_number[-5:]}"
+            return display_name
+=======
+    def _build_display_name(self, *args, max_length=34, should_pad=True, **kwargs):
+        if self.provider_code != "pagos360" or not self.pagos360_adhesion_type:
+            return super()._build_display_name(*args, max_length=max_length, should_pad=should_pad, **kwargs)
+        if self.pagos360_adhesion_type == "card_adhesion":
+            return f"Debito automático en Tarjeta: {self.pagos360_card or ''} **** - {self.pagos360_card_number or ''}"
+        return f"Debito automático en CBU: {self.pagos360_bank or ''} ****{(self.pagos360_cbu_number or '')[-5:]}"
+>>>>>>> faea9ab47b2bf5d5753090d815f36ed5009678fe
 
         super(PaymentToken, self - pagos360_tokens)._compute_display_name()
 

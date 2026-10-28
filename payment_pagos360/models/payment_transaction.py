@@ -475,8 +475,30 @@ class PaymentTransaction(models.Model):
             endpoint = f"/adhesion/{adhesion_id}"
 
         adhesion_data = self.provider_id._pagos360_make_request(endpoint, data=None, method="GET")
+<<<<<<< b49e82941a513aaad2998782d148b24af6d888b0
         if not adhesion_data:
             return {}
+||||||| 41a4f01ee5b76b6471ea2069c38f9be90e93e061
+        if adhesion_data:
+            if notification_data["entity_name"] == "card_adhesion":
+                payment_details = "Debito automático en Tarjeta: {} **** - {}".format(
+                    adhesion_data["card"], adhesion_data["last_four_digits"]
+                )
+            elif notification_data["entity_name"] == "adhesion":
+                payment_details = "Debito automático en CBU: {} ****{}".format(
+                    adhesion_data.get("bank"), adhesion_data["cbu_number"]
+                )
+=======
+        if adhesion_data:
+            if notification_data["entity_name"] == "card_adhesion":
+                payment_details = "Debito automático en Tarjeta: {} **** - {}".format(
+                    adhesion_data.get("card"), adhesion_data.get("last_four_digits")
+                )
+            elif notification_data["entity_name"] == "adhesion":
+                payment_details = "Debito automático en CBU: {} ****{}".format(
+                    adhesion_data.get("bank"), adhesion_data.get("cbu_number")
+                )
+>>>>>>> faea9ab47b2bf5d5753090d815f36ed5009678fe
 
         if entity_name == "card_adhesion":
             payment_details = "Debito automático en Tarjeta: {} **** - {}".format(
