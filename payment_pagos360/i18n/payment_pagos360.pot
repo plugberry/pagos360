@@ -150,6 +150,13 @@ msgid ""
 msgstr ""
 
 #. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid ""
+"Adhesions are signed in the Pagos360 sandbox; only charges can be simulated."
+msgstr ""
+
+#. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "Ante algún inconveniente al realizar su pago contactese a"
 msgstr ""
@@ -377,6 +384,13 @@ msgid "ID"
 msgstr ""
 
 #. module: payment_pagos360
+#: model:ir.model.fields,help:payment_pagos360.field_payment_transaction__pagos360_provider_is_live
+msgid ""
+"If live mode is disabled, a fake payment is processed through a test "
+"payment interface. This mode is advised when setting up the provider."
+msgstr ""
+
+#. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.rapipago_barcode_print
 msgid "Imprima este codigo para abonar en la red de rapipago"
 msgstr ""
@@ -423,6 +437,11 @@ msgstr ""
 #. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__pagos360_form_url
 msgid "Link formulario debito automático"
+msgstr ""
+
+#. module: payment_pagos360
+#: model:ir.model.fields,field_description:payment_pagos360.field_payment_transaction__pagos360_provider_is_live
+msgid "Live"
 msgstr ""
 
 #. module: payment_pagos360
@@ -567,6 +586,13 @@ msgstr ""
 #. module: payment_pagos360
 #. odoo-python
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid ""
+"Pagos360 notifications can only be simulated with the provider in test mode."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "Payment %s"
 msgstr ""
 
@@ -623,6 +649,27 @@ msgid ""
 msgstr ""
 
 #. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_transaction_form_pagos360
+msgid "Simulate Payment"
+msgstr ""
+
+#. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_transaction_form_pagos360
+msgid "Simulate Rejection"
+msgstr ""
+
+#. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_transaction_form_pagos360
+msgid "Simulate Reversal"
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "Simulated Pagos360 notification: %s"
+msgstr ""
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_payment_provider__second_due_fees
 msgid "Surcharge"
 msgstr ""
@@ -674,8 +721,35 @@ msgid "The installment number must be unique."
 msgstr ""
 
 #. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid ""
+"The post-processing failed and was left to the cron; see the server log."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid ""
+"The post-processing was called right away, without waiting for the cron."
+msgstr ""
+
+#. module: payment_pagos360
 #: model:ir.model.fields,help:payment_pagos360.field_payment_provider__code
 msgid "The technical code of this payment provider."
+msgstr ""
+
+#. module: payment_pagos360
+#: model_terms:ir.ui.view,arch_db:payment_pagos360.payment_transaction_form_pagos360
+msgid ""
+"This cancels the payment and undoes its reconciliation, as a real Pagos360 "
+"reversal does."
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "Transaction %(reference)s cannot be simulated as %(status)s."
 msgstr ""
 
 #. module: payment_pagos360
@@ -752,6 +826,12 @@ msgstr ""
 #. module: payment_pagos360
 #: model_terms:ir.ui.view,arch_db:payment_pagos360.inline_form
 msgid "hola@pagos360.com"
+msgstr ""
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "rejected"
 msgstr ""
 
 #. module: payment_pagos360
