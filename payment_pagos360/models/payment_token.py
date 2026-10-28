@@ -29,16 +29,12 @@ class PaymentToken(models.Model):
         "pagos360_cbu_number",
     )
     def _compute_display_name(self):
-        pagos360_tokens = self.filtered(lambda t: t.provider_code == "pagos360")
+        pagos360_tokens = self.filtered(lambda t: t.provider_code == "pagos360" and t.pagos360_adhesion_type)
         for token in pagos360_tokens:
             if token.pagos360_adhesion_type == "card_adhesion":
-                token.display_name = (
-                    f"Debito automático en Tarjeta: {token.pagos360_card} **** - {token.pagos360_card_number}"
-                )
-            elif token.pagos360_adhesion_type == "adhesion":
-                token.display_name = (
-                    f"Debito automático en CBU: {token.pagos360_bank} ****{token.pagos360_cbu_number[-5:]}"
-                )
+                token.display_name = f"Debito automático en Tarjeta: {token.pagos360_card or ''} **** - {token.pagos360_card_number or ''}"
+            else:
+                token.display_name = f"Debito automático en CBU: {token.pagos360_bank or ''} ****{(token.pagos360_cbu_number or '')[-5:]}"
 
         super(PaymentToken, self - pagos360_tokens)._compute_display_name()
 
