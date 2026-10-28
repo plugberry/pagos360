@@ -19,14 +19,11 @@ class PaymentToken(models.Model):
     pagos360_card_number = fields.Char()
 
     def _build_display_name(self, *args, max_length=34, should_pad=True, **kwargs):
-        if self.provider_code != "pagos360":
+        if self.provider_code != "pagos360" or not self.pagos360_adhesion_type:
             return super()._build_display_name(*args, max_length=max_length, should_pad=should_pad, **kwargs)
-        else:
-            if self.pagos360_adhesion_type == "card_adhesion":
-                display_name = f"Debito automático en Tarjeta: {self.pagos360_card} **** - {self.pagos360_card_number}"
-            elif self.pagos360_adhesion_type == "adhesion":
-                display_name = f"Debito automático en CBU: {self.pagos360_bank} ****{self.pagos360_cbu_number[-5:]}"
-            return display_name
+        if self.pagos360_adhesion_type == "card_adhesion":
+            return f"Debito automático en Tarjeta: {self.pagos360_card or ''} **** - {self.pagos360_card_number or ''}"
+        return f"Debito automático en CBU: {self.pagos360_bank or ''} ****{(self.pagos360_cbu_number or '')[-5:]}"
 
     def write(self, values):
         res = super().write(values)

@@ -325,11 +325,11 @@ class PaymentTransaction(models.Model):
         if adhesion_data:
             if notification_data["entity_name"] == "card_adhesion":
                 payment_details = "Debito automático en Tarjeta: {} **** - {}".format(
-                    adhesion_data["card"], adhesion_data["last_four_digits"]
+                    adhesion_data.get("card"), adhesion_data.get("last_four_digits")
                 )
             elif notification_data["entity_name"] == "adhesion":
                 payment_details = "Debito automático en CBU: {} ****{}".format(
-                    adhesion_data.get("bank"), adhesion_data["cbu_number"]
+                    adhesion_data.get("bank"), adhesion_data.get("cbu_number")
                 )
 
             token_vals = {
