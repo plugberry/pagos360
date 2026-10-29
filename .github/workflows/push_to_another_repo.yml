@@ -12,13 +12,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'adhoc-dev' }}
+    timeout-minutes: 2
     steps:
+      - name: Generate mirror token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.MIRROR_SYNC_CLIENT_ID }}
+          private-key: ${{ secrets.MIRROR_SYNC_PRIVATE_KEY }}
+          owner: plugberry
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-workflows: write
       - name: Clone adhoc-dev
         with:
-          token: ${{ secrets.TOKEN }}
           fetch-depth: 0
+          persist-credentials: false
         uses: actions/checkout@v4
       - name: Push to plugberry
-        run: git push --force https://github.com/plugberry/${GITHUB_REPOSITORY#'adhoc-dev/'}.git HEAD
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: git push --force "https://x-access-token:${APP_TOKEN}@github.com/plugberry/${GITHUB_REPOSITORY#'adhoc-dev/'}.git" HEAD
       - name: PR link
         run: echo 'Create pr by visiting https://github.com/plugberry/'${GITHUB_REPOSITORY#'adhoc-dev/'}'/pull/new/'${GITHUB_REF_NAME}
