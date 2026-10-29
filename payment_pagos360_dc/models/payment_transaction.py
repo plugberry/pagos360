@@ -25,8 +25,10 @@ class PaymentTransaction(models.Model):
         "`pagos360_child_amount` para que la transacción hija cobre en la moneda correcta.",
     )
     pagos360_debit_execution_date = fields.Date(
-        string="Fecha de débito al cliente",
+        string="Fecha prevista (según configuración)",
         readonly=True,
+        help="Calculada por Odoo con los días de ejecución o de corte del proveedor. "
+        "No es un dato informado por Pagos360.",
     )
 
     # -------------------------------------------------------------------------
