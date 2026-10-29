@@ -17,7 +17,7 @@ class TestWebhookAmount(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.payment_method = cls.env.ref("payment_pagos360.payment_method_pagos360")
         cls.currency = cls.env.company.currency_id
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
@@ -64,7 +64,10 @@ class TestWebhookAmount(TransactionCase):
         # _apply_updates falls back to the API for the effective payment date; keep the
         # test offline. The module already tolerates a failing call.
         with patch.object(type(self.provider), "_pagos360_make_request", return_value={}):
-            return self.env["payment.transaction"].sudo()._process("pagos360", data)
+            Transaction = self.env["payment.transaction"].sudo()
+            tx = Transaction._search_by_reference("pagos360", data)
+            tx.with_context(payment_safe_write=True)._process(data)
+            return tx
 
     # --- webhook payloads without an amount -------------------------------------------
 
