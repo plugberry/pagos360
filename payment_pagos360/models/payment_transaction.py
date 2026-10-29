@@ -21,6 +21,17 @@ class PaymentTransaction(models.Model):
 
     pagos360_adhesion_type = fields.Selection(related="token_id.pagos360_adhesion_type", store=True)
     pagos360_effective_payment_date = fields.Date()
+    pagos360_estimated_charge_date = fields.Date(
+        string="Fecha estimada de cobro",
+        readonly=True,
+        help="CBU: fecha de ejecución enviada a Pagos360, hasta que informa el cobro. "
+        "Tarjeta y cupón: vacía hasta que Pagos360 informa el cobro.",
+    )
+    pagos360_estimated_settlement_date = fields.Date(
+        string="Fecha estimada de acreditación",
+        readonly=True,
+        help="Fecha de acreditación en la cuenta propia, informada por Pagos360 al cobrar.",
+    )
 
     @api.constrains("amount", "currency_id", "payment_method_id", "provider_id")
     def _check_pagos360_cash_maximum_amount(self):
@@ -198,6 +209,7 @@ class PaymentTransaction(models.Model):
 
         self.provider_reference = entity_id
         paid_at = self._pagos360_extract_paid_at(notification_data.get("payload", {}).get("request_result", {}))
+        self._pagos360_set_estimated_dates(entity_name, notification_data.get("payload") or {})
         payment_status = notification_data.get("type")
 
         try:
@@ -310,6 +322,22 @@ class PaymentTransaction(models.Model):
     def _pagos360_is_collected(self, result):
         """Whether a ``request_result`` item is the collected attempt (not a rejected one)."""
         return isinstance(result, dict) and str(result.get("type", "")).startswith("collected_")
+
+    def _pagos360_set_estimated_dates(self, entity_name, payload):
+        """Set the estimated dates only from dates informed by Pagos360, never from fixed terms.
+
+        A payload without dates leaves the stored values as they are.
+        """
+        collected = next((r for r in payload.get("request_result") or [] if self._pagos360_is_collected(r)), {})
+        if collected.get("available_at"):
+            self.pagos360_estimated_settlement_date = collected["available_at"][:10]
+        # The real charge replaces the execution date we sent, which only CBU debits have.
+        # _send_payment_request processes the CBU debit response as "adhesion".
+        charge = collected.get("paid_at") or (
+            entity_name in ("debit_request", "adhesion") and payload.get("first_due_date")
+        )
+        if charge:
+            self.pagos360_estimated_charge_date = charge[:10]
 
     def _pagos360_tokenize_from_feedback_data(self, notification_data):
         """Create a new token based on the feedback data.
