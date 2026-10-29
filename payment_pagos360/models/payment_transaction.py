@@ -299,12 +299,17 @@ class PaymentTransaction(models.Model):
             return False
 
         if isinstance(data, list):
-            for item in data:
+            # Rejected attempts also carry paid_at: look at the collected one first
+            for item in sorted(data, key=lambda item: not self._pagos360_is_collected(item)):
                 paid_at = self._pagos360_extract_paid_at(item)
                 if paid_at:
                     return paid_at
 
         return False
+
+    def _pagos360_is_collected(self, result):
+        """Whether a ``request_result`` item is the collected attempt (not a rejected one)."""
+        return isinstance(result, dict) and str(result.get("type", "")).startswith("collected_")
 
     def _pagos360_tokenize_from_feedback_data(self, notification_data):
         """Create a new token based on the feedback data.
