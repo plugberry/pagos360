@@ -37,3 +37,10 @@ class TestProviderCredentials(TransactionCase):
         self.provider.pagos360_test_api_key = False
         with self.assertRaises(UserError):
             self.provider.active = True
+
+    def test_new_company_copy_has_no_api_keys(self):
+        company = self.env["res.company"].create({"name": "Pagos360 Copy Company"})
+        copy = self.env["payment.provider"].search([("code", "=", "pagos360"), ("company_id", "=", company.id)])
+        self.assertTrue(copy, "the payment module copies installed providers to a new company")
+        self.assertFalse(copy.pagos360_api_key)
+        self.assertFalse(copy.pagos360_test_api_key)
