@@ -7,18 +7,280 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 19.0\n"
+"Project-Id-Version: Odoo Server 20.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-16 20:13+0000\n"
-"PO-Revision-Date: 2025-12-01 14:57+0000\n"
+"POT-Creation-Date: 2026-11-02 19:20+0000\n"
+"PO-Revision-Date: 2026-11-02 19:20+0000\n"
 "Last-Translator: Juan José Scarafía <scarafia.juanjose@gmail.com>, 2025\n"
 "Language-Team: Spanish (https://app.transifex.com/adhoc/teams/46451/es/)\n"
 "Language: es\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: \n"
-"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
-"1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.module.module,description:base.module_pagos360_invoice_barcode
+msgid ""
+"# Pagos360 Invoice Barcode\n"
+"\n"
+"## Descripción\n"
+"\n"
+"Este módulo permite agregar códigos de barras de Pagos360 (PagoFácil y RapiPago) directamente en las facturas de venta de Odoo. Cuando se emite una factura, el módulo genera en segundo plano una solicitud de pago en Pagos360 y obtiene los códigos de barras correspondientes que se imprimen en el reporte de factura. Confirmar la factura no espera a Pagos360.\n"
+"\n"
+"## Características\n"
+"\n"
+"- **Generación automática de códigos de barras**: Al validar una factura (a mano, por la confirmación automática, desde una suscripción o por cualquier otro camino), queda pendiente de código y una acción planificada pide los códigos a Pagos360. Si Pagos360 no responde, la factura se confirma igual y el pedido se reintenta cada hora, hasta 5 veces.\n"
+"- **Envío e impresión con el código**: La factura se envía y se imprime solo cuando tiene su código de barras. Si al enviarla todavía no lo tiene, se pide en ese momento; si Pagos360 sigue sin responder, el envío directo se frena con un mensaje y el envío en cola espera hasta que llegue el código.\n"
+"- **Aviso al responsable**: Si después de 5 intentos la factura sigue sin código, ya no se reintenta sola y se le crea una actividad al responsable de la factura (o a quien la creó). Enviarla o imprimirla vuelve a pedir el código.\n"
+"- **Soporte para múltiples métodos de pago**: Incluye códigos de barras para PagoFácil y RapiPago.\n"
+"- **Visualización en factura**: Los códigos de barras se muestran automáticamente en el reporte PDF de la factura.\n"
+"- **Integración transparente**: Funciona sin intervención del usuario una vez configurado el proveedor de pago Pagos360.\n"
+"- **Reconciliación automática**: Cuando se recibe un pago a través del código de barras, el sistema crea automáticamente la transacción y la vincula a la factura correspondiente.\n"
+"\n"
+"## Requisitos\n"
+"\n"
+"- Odoo 20.0\n"
+"- Módulo `payment_pagos360` instalado y configurado\n"
+"- Cuenta activa en Pagos360 con API Key configurada\n"
+"\n"
+"## Instalación\n"
+"\n"
+"1. Asegúrese de tener el módulo `payment_pagos360` instalado y configurado correctamente.\n"
+"2. Instale este módulo desde la lista de aplicaciones de Odoo.\n"
+"\n"
+"## Configuración\n"
+"\n"
+"### Configurar Proveedor de Pago Pagos360\n"
+"\n"
+"1. Vaya a **Contabilidad > Configuración > Proveedores de Pago**.\n"
+"2. Seleccione o cree un proveedor **Pagos360**.\n"
+"3. Configure los siguientes campos:\n"
+"   - **Api Key**: Clave de API de producción de Pagos360\n"
+"   - **Test Api Key**: Clave de API de prueba de Pagos360\n"
+"   - **Activo** y **Producción**: active el proveedor; marque \"Producción\" para usar la API Key de producción, o déjelo sin marcar para usar la de prueba. Los códigos de barras se piden con el proveedor activo que tenga la clave de su modo, así que una base de prueba los genera igual que producción si el proveedor tiene su Test Api Key\n"
+"   - **Medios de pago**: active el medio **PagoFacil** del proveedor, que es el que se usa para registrar los cobros con código de barras\n"
+"   - **Días de validez**: Días hasta el vencimiento de la primera cuota (por defecto 15)\n"
+"\n"
+"### Webhooks\n"
+"\n"
+"Es importante configurar los webhooks en Pagos360 para recibir notificaciones de pagos:\n"
+"\n"
+"1. En el formulario del proveedor de pago, haga clic en el botón **\"Asegurar Webhook\"**.\n"
+"2. Esto configurará automáticamente el webhook en Pagos360 para su URL de Odoo.\n"
+"\n"
+"## Uso\n"
+"\n"
+"### Generación de Códigos de Barras\n"
+"\n"
+"1. Cree una factura de cliente desde **Contabilidad > Clientes > Facturas**.\n"
+"2. Complete la información de la factura (cliente, líneas de factura, etc.).\n"
+"3. Haga clic en **Validar**.\n"
+"4. La factura queda confirmada y pendiente de código. La acción planificada **Pagos360: request invoice barcodes**, que corre apenas se confirma y después cada hora:\n"
+"   - Crea una solicitud de pago en Pagos360\n"
+"   - Obtiene los códigos de barras\n"
+"   - Los almacena en la factura\n"
+"\n"
+"   Si Pagos360 no responde, la factura queda pendiente y se reintenta en la próxima corrida, sin frenar las demás. Después de 5 intentos se deja de reintentar y se avisa al responsable.\n"
+"\n"
+"### Envío de la Factura\n"
+"\n"
+"- **Envío desde la factura** (botón Enviar): si la factura todavía no tiene código, se pide en ese momento. Si Pagos360 no lo devuelve, el envío no se hace y se muestra un mensaje para probar de nuevo en unos minutos.\n"
+"- **Envío masivo o automático**: las facturas sin código quedan en la cola de envío y salen cuando llega el código.\n"
+"- **Imprimir o descargar**: igual que el envío desde la factura. Si no tiene código, se pide en ese momento, y si Pagos360 no lo devuelve, no se imprime.\n"
+"\n"
+"### Visualización en Reporte\n"
+"\n"
+"Cuando imprima la factura o la envíe por correo electrónico:\n"
+"\n"
+"1. Vaya a la factura y haga clic en **Imprimir > Factura**.\n"
+"2. En el PDF generado, al final de la factura verá:\n"
+"   - Una sección titulada \"Medio de pago electrónico\"\n"
+"   - El código de barras visual de PagoFácil/RapiPago\n"
+"   - El número del código de barras en formato texto\n"
+"   - Si corresponde, un código de barras adicional para RapiPago\n"
+"\n"
+"### Proceso de Pago\n"
+"\n"
+"1. El cliente recibe la factura con el código de barras.\n"
+"2. El cliente puede pagar en cualquier sucursal de PagoFácil o RapiPago mostrando el código de barras.\n"
+"3. Cuando Pagos360 recibe el pago, envía un webhook a Odoo.\n"
+"4. El sistema automáticamente:\n"
+"   - Crea una transacción de pago\n"
+"   - La vincula a la factura correspondiente\n"
+"   - Registra el pago en la factura\n"
+"\n"
+"## Detalles Técnicos\n"
+"\n"
+"### Modelos Extendidos\n"
+"\n"
+"#### account.move\n"
+"\n"
+"Campos agregados:\n"
+"- `pagos360_barcode`: Código numérico de PagoFácil/RapiPago\n"
+"- `pagos360_barcode_image`: Imagen SVG del código de barras\n"
+"- `pagos360_rp_barcode`: Código numérico alternativo de RapiPago\n"
+"- `pagos360_rp_barcode_image`: Imagen SVG del código de barras alternativo\n"
+"- `pagos360_barcode_amount`: Monto de la solicitud de pago\n"
+"- `pagos360_barcode_pending_since`: Desde cuándo la factura espera su código (vacío si no lo espera)\n"
+"- `pagos360_barcode_alerted`: Si ya se le avisó al responsable que falta el código\n"
+"- `pagos360_barcode_last_try`: Último pedido del código\n"
+"- `pagos360_barcode_tries`: Pedidos que no devolvieron el código\n"
+"- `pagos360_payment_request_id`: Id de la solicitud de pago en Pagos360; con él, un reintento consulta la solicitud en lugar de crear otra\n"
+"- `pagos360_barcode_url`, `pagos360_rp_barcode_url`: Dónde Pagos360 sirve las imágenes de los códigos\n"
+"- `pagos360_sending_data`: Datos de envío guardados mientras la factura espera su código\n"
+"\n"
+"Métodos:\n"
+"- `_payment_barcode_request_pagos360()`: Solicita códigos de barras a Pagos360\n"
+"- `_pagos360_request_payment_request()`: Crea la solicitud de pago, o la consulta por su id si ya existe\n"
+"- `_pagos360_download_barcode_images()`: Descarga las imágenes de los códigos que faltan\n"
+"- `_create_pagos360_barcode()`: Marca como pendientes de código las facturas validadas y despierta la acción planificada\n"
+"- `_post()`: Override que marca las facturas pendientes de código, sin llamar a Pagos360\n"
+"- `_pagos360_request_pending_barcodes()`: Pide el código de las facturas pendientes; una falla deja la factura pendiente\n"
+"- `_pagos360_alert_missing_barcode()`: Crea la actividad de aviso después de 5 intentos, una sola vez\n"
+"- `_cron_pagos360_request_barcodes()`: Acción planificada que pide los códigos pendientes, de la más vieja a la más nueva\n"
+"\n"
+"#### account.move.send\n"
+"\n"
+"Métodos:\n"
+"- `_generate_and_send_invoices()`: Override que pide el código faltante antes de enviar, frena el envío directo sin código y deja en la cola el envío masivo\n"
+"\n"
+"#### ir.actions.report\n"
+"\n"
+"Métodos:\n"
+"- `_pre_render_qweb_pdf()`: Override que pide el código faltante antes de imprimir una factura y frena la impresión si no llega\n"
+"\n"
+"#### payment.transaction\n"
+"\n"
+"Métodos:\n"
+"- `_pagos360_get_provider_invoice_from_reference()`: Extrae información de proveedor y factura desde una referencia\n"
+"- `_pagos360_get_barcode_paid_amount()`: Obtiene el monto cobrado de la solicitud de pago\n"
+"- `_search_by_reference()`: Override para buscar/crear transacciones desde pagos con código de barras\n"
+"\n"
+"### Formato de Referencias\n"
+"\n"
+"Las referencias de pago siguen el formato: `inv-{provider_id}-{invoice_id}`\n"
+"\n"
+"Por ejemplo: `inv-42-1234`\n"
+"- `inv`: Prefijo que indica que es un pago de factura\n"
+"- `42`: ID del proveedor de pago\n"
+"- `1234`: ID de la factura\n"
+"\n"
+"### Flujo de Datos\n"
+"\n"
+"1. **Creación de código de barras**:\n"
+"   ```\n"
+"   Factura validada → Pendiente de código → Acción planificada → Solicitud API a Pagos360 →\n"
+"   Almacenamiento de códigos → Disponible en reporte y envío\n"
+"   ```\n"
+"\n"
+"2. **Recepción de pago**:\n"
+"   ```\n"
+"   Pago en PagoFácil/RapiPago → Webhook de Pagos360 → Búsqueda de transacción →\n"
+"   Creación si no existe → Vinculación a factura → Registro de pago\n"
+"   ```\n"
+"\n"
+"### API de Pagos360 Utilizada\n"
+"\n"
+"- `POST /payment-request`: Crea solicitud de pago y obtiene códigos de barras\n"
+"- Webhooks recibidos: `paid` (pago confirmado)\n"
+"\n"
+"## Solución de Problemas\n"
+"\n"
+"### Los códigos de barras no se generan\n"
+"\n"
+"**Causas posibles**:\n"
+"- El proveedor de pago Pagos360 no está configurado correctamente, o no tiene la API Key de su modo (producción o prueba)\n"
+"- La API Key es inválida o está deshabilitada\n"
+"- La factura no tiene fecha de vencimiento configurada\n"
+"- La factura ya tiene un código de barras generado\n"
+"- Pagos360 no respondió todavía: la factura queda pendiente y se reintenta cada hora\n"
+"\n"
+"**Solución**:\n"
+"1. Verifique la configuración del proveedor en Contabilidad > Configuración > Proveedores de Pago\n"
+"2. Asegúrese de que la API Key es válida\n"
+"3. Configure una fecha de vencimiento en la factura\n"
+"4. Revise los logs de Odoo para ver errores detallados\n"
+"5. Verifique que la acción planificada **Pagos360: request invoice barcodes** esté activa\n"
+"\n"
+"### Los pagos no se registran automáticamente\n"
+"\n"
+"**Causas posibles**:\n"
+"- Los webhooks no están configurados correctamente\n"
+"- La URL de Odoo no es accesible desde Internet\n"
+"- El webhook está bloqueado por firewall\n"
+"\n"
+"**Solución**:\n"
+"1. Use el botón \"Asegurar Webhook\" en el proveedor de pago\n"
+"2. Verifique que su servidor Odoo sea accesible públicamente\n"
+"3. Revise la configuración del firewall para permitir conexiones desde Pagos360\n"
+"\n"
+"### Errores de timeout al generar códigos\n"
+"\n"
+"**Causas posibles**:\n"
+"- Problemas de conectividad con la API de Pagos360\n"
+"- Timeout configurado muy bajo\n"
+"\n"
+"**Solución**:\n"
+"1. Verifique la conectividad a Internet del servidor\n"
+"2. El timeout está configurado en 10 segundos para descargar imágenes, puede ajustarse si es necesario\n"
+"\n"
+"## Seguridad\n"
+"\n"
+"- Las API Keys se almacenan en campos protegidos solo accesibles por administradores del sistema\n"
+"- Las imágenes de códigos de barras se almacenan como adjuntos en Odoo\n"
+"- Las transacciones se crean con validaciones estrictas para evitar duplicados\n"
+"\n"
+"## Mantenimiento\n"
+"\n"
+"### Actualización de Versiones\n"
+"\n"
+"El módulo es compatible con Odoo 20.0 y con la versión 20.0 del módulo `payment_pagos360`.\n"
+"\n"
+"### Migración desde versiones anteriores\n"
+"\n"
+"Si está migrando desde versiones anteriores de Odoo:\n"
+"1. Actualice primero el módulo `payment_pagos360`\n"
+"2. Actualice este módulo\n"
+"3. Verifique que los webhooks estén correctamente configurados\n"
+"\n"
+"## Soporte\n"
+"\n"
+"Para soporte técnico relacionado con:\n"
+"- **El módulo**: Contacte a Plugberry\n"
+"- **La API de Pagos360**: Email: soporte@pagos360.com.ar, WhatsApp: +54 3512548747\n"
+"\n"
+"## Licencia\n"
+"\n"
+"LGPL-3\n"
+"\n"
+"## Créditos\n"
+"\n"
+"- **Autor**: Plugberry\n"
+"- **Mantenedor**: Plugberry\n"
+"\n"
+"## Changelog\n"
+"\n"
+"### Versión 20.0.1.0.0\n"
+"- Adaptación a Odoo 20.0\n"
+"- El código de barras se pide por una acción planificada con reintento, y no al confirmar la factura\n"
+"- La factura se envía solo con su código de barras\n"
+"- La factura se imprime solo con su código de barras\n"
+"- Aviso al responsable después de 5 intentos sin código\n"
+"- El código se pide también para las facturas confirmadas sin el botón Validar\n"
+"\n"
+"### Versión 19.0.1.0.0\n"
+"- Adaptación a Odoo 19.0\n"
+"- Actualización para compatibilidad con `payment_pagos360` v19.0\n"
+"- Cambio de `_get_tx_from_notification_data` a `_search_by_reference` según nueva API de payment\n"
+"- Mejoras en documentación y código\n"
+"- Mejoras en traducciones\n"
+msgstr ""
+
+#. module: pagos360_invoice_barcode
+#: model:ir.module.module,summary:base.module_pagos360_invoice_barcode
+msgid "Agrega códigos de barras de Pagos360 en las facturas"
+msgstr ""
 
 #. module: pagos360_invoice_barcode
 #: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode
@@ -34,15 +296,25 @@ msgstr "Código de barras de PagoFácil/RapiPago generado por Pagos360"
 
 #. module: pagos360_invoice_barcode
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__display_name
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move_send__display_name
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_ir_actions_report__display_name
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_payment_transaction__display_name
 msgid "Display Name"
-msgstr ""
+msgstr "Mostrar nombre"
 
 #. module: pagos360_invoice_barcode
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__id
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move_send__id
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_ir_actions_report__id
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_payment_transaction__id
 msgid "ID"
-msgstr ""
+msgstr "ID (identificación)"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_payment_request_id
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_payment_request_id
+msgid "Id of the payment request in Pagos360."
+msgstr "Id de la solicitud de pago en Pagos360."
 
 #. module: pagos360_invoice_barcode
 #: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode_image
@@ -60,6 +332,12 @@ msgstr "Imagen SVG del código de barras de PagoFácil/RapiPago"
 #: model:ir.model,name:pagos360_invoice_barcode.model_account_move
 msgid "Journal Entry"
 msgstr "Asiento contable"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_last_try
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_barcode_last_try
+msgid "Last time the Pagos360 barcode was requested."
+msgstr "Última vez que se solicitó el código de barras de Pagos360."
 
 #. module: pagos360_invoice_barcode
 #: model_terms:ir.ui.view,arch_db:pagos360_invoice_barcode.report_invoice_document
@@ -84,16 +362,57 @@ msgid "Pagos360 Barcode"
 msgstr "Código de barras Pagos360"
 
 #. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_alerted
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_alerted
+msgid "Pagos360 Barcode Alerted"
+msgstr "Aviso de código de barras de Pagos360 enviado"
+
+#. module: pagos360_invoice_barcode
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_amount
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_amount
 msgid "Pagos360 Barcode Amount"
-msgstr ""
+msgstr "Monto del código de barras de Pagos360"
 
 #. module: pagos360_invoice_barcode
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_image
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_image
 msgid "Pagos360 Barcode Image"
 msgstr "Imagen código de barras Pagos360"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_last_try
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_last_try
+msgid "Pagos360 Barcode Last Try"
+msgstr "Último intento del código de barras de Pagos360"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_pending_since
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_pending_since
+msgid "Pagos360 Barcode Pending Since"
+msgstr "Código de barras de Pagos360 pendiente desde"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_tries
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_tries
+msgid "Pagos360 Barcode Tries"
+msgstr "Intentos del código de barras de Pagos360"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_url
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_barcode_url
+msgid "Pagos360 Barcode Url"
+msgstr "URL del código de barras de Pagos360"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.module.module,shortdesc:base.module_pagos360_invoice_barcode
+msgid "Pagos360 Invoice Barcode"
+msgstr "Código de barras de Pagos360 en facturas"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_payment_request_id
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_payment_request_id
+msgid "Pagos360 Payment Request"
+msgstr "Solicitud de pago de Pagos360"
 
 #. module: pagos360_invoice_barcode
 #: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode
@@ -108,13 +427,74 @@ msgid "Pagos360 Rp Barcode Image"
 msgstr "Imagen código de barras RapiPago Pagos360"
 
 #. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode_url
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_rp_barcode_url
+msgid "Pagos360 Rp Barcode Url"
+msgstr "URL del código de barras de RapiPago de Pagos360"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_sending_data
+#: model:ir.model.fields,field_description:pagos360_invoice_barcode.field_account_move__pagos360_sending_data
+msgid "Pagos360 Sending Data"
+msgstr "Datos de envío de Pagos360"
+
+#. module: pagos360_invoice_barcode
+#. odoo-python
+#: code:addons/pagos360_invoice_barcode/models/account_move.py:0
+msgid "Pagos360 barcode missing"
+msgstr "Falta el código de barras de Pagos360"
+
+#. module: pagos360_invoice_barcode
+#. odoo-python
+#: code:addons/pagos360_invoice_barcode/models/account_move.py:0
+msgid ""
+"Pagos360 did not return the barcode of this invoice after %(tries)s tries, "
+"and it is not requested automatically any more. The invoice cannot be sent "
+"or printed without it: sending or printing it requests the barcode again."
+msgstr ""
+"Pagos360 no devolvió el código de barras de esta factura después de "
+"%(tries)s intentos, y ya no se solicita automáticamente. La factura no se "
+"puede enviar ni imprimir sin él: al enviarla o imprimirla se vuelve a "
+"solicitar."
+
+#. module: pagos360_invoice_barcode
+#. odoo-python
+#: code:addons/pagos360_invoice_barcode/models/ir_actions_report.py:0
+msgid ""
+"Pagos360 has not returned the barcode of %(invoices)s yet, so it cannot be "
+"printed without it. Try again in a few minutes."
+msgstr ""
+"Pagos360 todavía no devolvió el código de barras de %(invoices)s, por lo que"
+" no se puede imprimir sin él. Intente de nuevo en unos minutos."
+
+#. module: pagos360_invoice_barcode
+#. odoo-python
+#: code:addons/pagos360_invoice_barcode/models/account_move_send.py:0
+msgid ""
+"Pagos360 has not returned the barcode of %(invoices)s yet, so it cannot be "
+"sent without it. The request is retried automatically; try again in a few "
+"minutes."
+msgstr ""
+"Pagos360 todavía no devolvió el código de barras de %(invoices)s, por lo que"
+" no se puede enviar sin él. La solicitud se reintenta automáticamente; "
+"intente de nuevo en unos minutos."
+
+#. module: pagos360_invoice_barcode
 #. odoo-python
 #: code:addons/pagos360_invoice_barcode/models/payment_transaction.py:0
 msgid ""
 "Pagos360 reported this invoice as paid (payment request %s) but did not "
-"return the amount collected, so no payment was registered. Check the payment "
-"request in Pagos360 and register the payment manually."
+"return the amount collected, so no payment was registered. Check the payment"
+" request in Pagos360 and register the payment manually."
 msgstr ""
+"Pagos360 informó esta factura como pagada (solicitud de pago %s), pero no "
+"devolvió el monto cobrado, por lo que no se registró ningún pago. Revise la "
+"solicitud de pago en Pagos360 y registre el pago manualmente."
+
+#. module: pagos360_invoice_barcode
+#: model:ir.actions.server,name:pagos360_invoice_barcode.ir_cron_pagos360_invoice_barcode_ir_actions_server
+msgid "Pagos360: request invoice barcodes"
+msgstr "Pagos360: solicitar códigos de barras de facturas"
 
 #. module: pagos360_invoice_barcode
 #: model:ir.model,name:pagos360_invoice_barcode.model_payment_transaction
@@ -125,3 +505,61 @@ msgstr "Transacción de pago"
 #: model_terms:ir.ui.view,arch_db:pagos360_invoice_barcode.report_invoice_document
 msgid "Rapipago:"
 msgstr "RapiPago:"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model,name:pagos360_invoice_barcode.model_ir_actions_report
+msgid "Report Action"
+msgstr "Acción de reporte"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_tries
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_barcode_tries
+msgid ""
+"Requests of the Pagos360 barcode that did not return it since the invoice "
+"was posted."
+msgstr ""
+"Solicitudes del código de barras de Pagos360 que no lo devolvieron desde que"
+" se confirmó la factura."
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_sending_data
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_sending_data
+msgid ""
+"Sending data kept aside while the invoice waits for its Pagos360 barcode."
+msgstr ""
+"Datos de envío guardados aparte mientras la factura espera su código de "
+"barras de Pagos360."
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model,name:pagos360_invoice_barcode.model_account_move_send
+msgid "Shared Send Invoice Wizard Functions"
+msgstr "Funciones compartidas del asistente para enviar facturas"
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_pending_since
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_barcode_pending_since
+msgid ""
+"Since when the invoice waits for its Pagos360 barcode. Empty if it does not "
+"wait for it."
+msgstr ""
+"Desde cuándo la factura espera su código de barras de Pagos360. Vacío si no "
+"lo espera."
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_alerted
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_barcode_alerted
+msgid "The responsible was already told that the invoice has no barcode."
+msgstr ""
+"Ya se le avisó al responsable que la factura no tiene código de barras."
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_rp_barcode_url
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_rp_barcode_url
+msgid "Where Pagos360 serves the RapiPago barcode image."
+msgstr "Dónde Pagos360 sirve la imagen del código de barras de RapiPago."
+
+#. module: pagos360_invoice_barcode
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_bank_statement_line__pagos360_barcode_url
+#: model:ir.model.fields,help:pagos360_invoice_barcode.field_account_move__pagos360_barcode_url
+msgid "Where Pagos360 serves the barcode image."
+msgstr "Dónde Pagos360 sirve la imagen del código de barras."
