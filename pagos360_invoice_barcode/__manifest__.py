@@ -12,6 +12,7 @@
         "payment_pagos360",
     ],
     "data": [
+        "data/ir_cron_data.xml",
         "views/report_invoice.xml",
     ],
     "installable": True,
