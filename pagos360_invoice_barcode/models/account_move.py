@@ -1,7 +1,6 @@
-import base64
-
 import requests
 from odoo import fields, models
+from odoo.tools import BinaryBytes
 
 
 class AccountMove(models.Model):
@@ -29,7 +28,6 @@ class AccountMove(models.Model):
             .search(
                 [
                     ("code", "=", "pagos360"),
-                    ("state", "!=", "disabled"),
                     ("company_id", "in", self.mapped("company_id").ids),
                 ]
             )
@@ -58,14 +56,14 @@ class AccountMove(models.Model):
             if payment_data.get("barcode"):
                 invoice.pagos360_barcode = payment_data.get("barcode")
                 svg = requests.get(payment_data["barcode_url"], timeout=10).content
-                invoice.pagos360_barcode_image = base64.b64encode(svg)
+                invoice.pagos360_barcode_image = BinaryBytes(svg)
                 invoice.pagos360_barcode_amount = payment_data.get("first_total", 0.0)
             if payment_data.get("rapipago_barcode") and payment_data.get("rapipago_barcode") != payment_data.get(
                 "barcode"
             ):
                 invoice.pagos360_rp_barcode = payment_data.get("rapipago_barcode")
                 rp_svg = requests.get(payment_data["rapipago_barcode_url"], timeout=10).content
-                invoice.pagos360_rp_barcode_image = base64.b64encode(rp_svg)
+                invoice.pagos360_rp_barcode_image = BinaryBytes(rp_svg)
 
     def action_post(self):
         """Override to create Pagos360 barcodes when invoice is posted."""
