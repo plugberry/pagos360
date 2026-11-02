@@ -1,6 +1,6 @@
 {
     "name": "Pagos360 Invoice Barcode",
-    "version": "19.0.1.0.0",
+    "version": "20.0.1.0.0",
     "summary": "Agrega códigos de barras de Pagos360 en las facturas",
     "category": "Accounting/Payment Providers",
     "author": "Plugberry",
@@ -14,7 +14,7 @@
     "data": [
         "views/report_invoice.xml",
     ],
-    "installable": False,
+    "installable": True,
     "application": False,
     "auto_install": False,
 }
