@@ -97,11 +97,7 @@ class PaymentTransaction(models.Model):
             provider, invoice = provider_invoice
             tx = self.search([("provider_id", "=", provider.id), ("reference", "=", external_reference)], limit=1)
             if not tx:
-                payment_method_id = (
-                    self.env["payment.method"]
-                    ._get_compatible_payment_methods(provider.ids, invoice.partner_id.id)
-                    .filtered(lambda x: x.code == "pagofacil")
-                )
+                payment_method_id = provider._get_pm_from_code("pagofacil").filtered("active")
                 amount = self._pagos360_get_barcode_paid_amount(provider, invoice, payment_data)
                 tx_vals = {
                     "reference": external_reference,

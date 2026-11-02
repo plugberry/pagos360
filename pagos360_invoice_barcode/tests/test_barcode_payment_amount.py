@@ -29,9 +29,9 @@ class TestBarcodePaymentAmount(AccountTestInvoicingCommon):
                 }
             )
         )
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.provider.journal_id = cls.company_data["default_journal_bank"]
-        cls.env.ref("payment_pagos360.payment_method_pagofacil").sudo().active = True
+        cls.provider._get_pm_from_code("pagofacil").active = True
 
     def setUp(self):
         super().setUp()
@@ -44,7 +44,7 @@ class TestBarcodePaymentAmount(AccountTestInvoicingCommon):
 
         self.startPatcher(patch.object(type(self.provider), "_pagos360_make_request", _fake_request))
 
-    def _create_invoice(self):
+    def _create_posted_invoice(self):
         return self.init_invoice("out_invoice", amounts=[INVOICE_AMOUNT], taxes=[], post=True)
 
     def _register_manual_payment(self, invoice, amount):
@@ -103,11 +103,13 @@ class TestBarcodePaymentAmount(AccountTestInvoicingCommon):
         "odoo.addons.payment_pagos360.models.payment_transaction",
     )
     def _process_data(self, data):
-        return self.env["payment.transaction"].sudo()._process("pagos360", data)
+        tx = self.env["payment.transaction"].sudo()._search_by_reference("pagos360", data)
+        tx.with_context(payment_safe_write=True)._process(data)
+        return tx
 
     def _process_notice(self, invoice):
         tx = self._process_data(self._webhook_data(invoice))
-        tx._post_process()
+        tx._post_process_with_lock()
         return tx
 
     def _receivable_residual(self, payment):
@@ -122,14 +124,14 @@ class TestBarcodePaymentAmount(AccountTestInvoicingCommon):
         self.assertEqual(tx.amount, amount)
         payment = tx.payment_id
         self.assertTrue(payment)
-        self.assertIn(payment.state, ("in_process", "paid"))
+        self.assertIn(payment.state, ("paid", "reconciled"))
         self.assertEqual(payment.payment_type, "inbound")
         self.assertEqual(payment.amount, amount)
         self.assertEqual(str(payment.date), PAID_AT[:10])
         return payment
 
     def test_settled_invoice_leaves_the_payment_as_customer_credit(self):
-        invoice = self._create_invoice()
+        invoice = self._create_posted_invoice()
         self._register_manual_payment(invoice, INVOICE_AMOUNT)
         self.assertEqual(invoice.amount_residual, 0.0)
         self.api_response = self._api_payment_request(invoice)
@@ -142,7 +144,7 @@ class TestBarcodePaymentAmount(AccountTestInvoicingCommon):
         self.assertEqual(self.api_calls.count(("GET", "/payment-request?id=%s" % ENTITY_ID)), 1)
 
     def test_unpaid_invoice_is_reconciled_with_the_payment(self):
-        invoice = self._create_invoice()
+        invoice = self._create_posted_invoice()
         self.api_response = self._api_payment_request(invoice)
 
         tx = self._process_notice(invoice)
@@ -153,7 +155,7 @@ class TestBarcodePaymentAmount(AccountTestInvoicingCommon):
         self.assertEqual(self._receivable_residual(payment), 0.0)
 
     def test_partially_paid_invoice_keeps_the_excess_as_customer_credit(self):
-        invoice = self._create_invoice()
+        invoice = self._create_posted_invoice()
         self._register_manual_payment(invoice, 10000.0)
         self.assertEqual(invoice.amount_residual, 20000.0)
         self.api_response = self._api_payment_request(invoice)
@@ -165,18 +167,18 @@ class TestBarcodePaymentAmount(AccountTestInvoicingCommon):
         self.assertEqual(self._receivable_residual(payment), -10000.0)
 
     def test_amount_comes_from_the_payload_when_present(self):
-        invoice = self._create_invoice()
+        invoice = self._create_posted_invoice()
         data = self._webhook_data(invoice)
         data["payload"]["request_result"] = self._api_payment_request(invoice)["data"][0]["request_result"]
 
         tx = self._process_data(data)
-        tx._post_process()
+        tx._post_process_with_lock()
 
         self._assert_inbound_payment(tx, INVOICE_AMOUNT)
         self.assertFalse([call for call in self.api_calls if call[0] == "GET"])
 
     def test_missing_amount_registers_nothing(self):
-        invoice = self._create_invoice()
+        invoice = self._create_posted_invoice()
         self._register_manual_payment(invoice, INVOICE_AMOUNT)
         self.api_response = self._api_payment_request(invoice, paid=False)
         messages_before = invoice.message_ids
