@@ -871,7 +871,8 @@ class PaymentTransaction(models.Model):
                     f"/{endpoint}/{payment_request_id}/cancel", method="PUT"
                 )
                 if response_json and response_json.get("state") == "canceled":
-                    tx._set_canceled()
+                    # The debit is already canceled in Pagos360: queue its state instead of writing it here.
+                    tx._pagos360_fetch_and_process_transaction()
         return
 
     def _pagos360_sanitized_reference(self):
