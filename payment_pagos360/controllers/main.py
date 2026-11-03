@@ -25,75 +25,52 @@ class Pagos360Controller(portal.CustomerPortal):
         "/payment/pagos360/pagofacil", type="http", methods=["GET", "POST"], auth="public", website=True, csrf=False
     )
     def pagofacil_barcode(self, tx_id, access_token, **kwargs):
-        """Display the payment confirmation page to the user.
-
-        :param str tx_id: The transaction to confirm, as a `payment.transaction` id
-        :param str access_token: The access token used to verify the user
-        :param dict kwargs: Optional data. This parameter is not used here
-        :raise: werkzeug.exceptions.NotFound if the access token is invalid
-        """
-        tx_id = self._cast_as_int(tx_id)
-        if tx_id:
-            tx_sudo = request.env["payment.transaction"].sudo().browse(tx_id)
-
-            # Raise an HTTP 404 if the access token is invalid
-            if not payment_utils.check_access_token(
-                access_token, tx_sudo.partner_id.id, tx_sudo.amount, tx_sudo.currency_id.id
-            ):
-                raise werkzeug.exceptions.NotFound()  # Don't leak information about ids.
-            if tx_sudo.provider_id.code != "pagos360" or tx_sudo.state not in ["draft", "pending"]:
-                return request.redirect("/my/home")
-
-            values = tx_sudo._pagos360_get_payment_request()
-            if not values:
-                raise ValidationError(_("No payment request found in Pagos360 for reference %s.", tx_sudo.reference))
-            tx_sudo.write(
-                {
-                    "provider_reference": values.get("id"),
-                    "state": values.get("state", "draft"),
-                }
-            )
-            return request.redirect(values["pdf_url"], local=False)
-        else:
-            # Display the portal homepage to the user
+        """Redirect the user to the Pago Fácil coupon of the transaction."""
+        values = self._pagos360_get_coupon_values(tx_id, access_token)
+        if not values:
             return request.redirect("/my/home")
+        return request.redirect(values["pdf_url"], local=False)
 
     @http.route(
         "/payment/pagos360/rapipago", type="http", methods=["GET", "POST"], auth="public", website=True, csrf=False
     )
     def rapipago_barcode(self, tx_id, access_token, **kwargs):
-        """Display the payment confirmation page to the user.
+        """Display the Rapipago coupon of the transaction."""
+        values = self._pagos360_get_coupon_values(tx_id, access_token)
+        if not values:
+            return request.redirect("/my/home")
+        return request.render("payment_pagos360.rapipago_barcode_print", values)
 
-        :param str tx_id: The transaction to confirm, as a `payment.transaction` id
+    def _pagos360_get_coupon_values(self, tx_id, access_token):
+        """Return the Pagos360 payment request of the transaction, after syncing it on the transaction.
+
+        :param str tx_id: The transaction, as a `payment.transaction` id
         :param str access_token: The access token used to verify the user
-        :param dict kwargs: Optional data. This parameter is not used here
+        :return: The payment request, or None when the user has to go back to the portal home.
+        :rtype: dict
         :raise: werkzeug.exceptions.NotFound if the access token is invalid
         """
         tx_id = self._cast_as_int(tx_id)
-        if tx_id:
-            tx_sudo = request.env["payment.transaction"].sudo().browse(tx_id)
+        if not tx_id:
+            return None
+        tx_sudo = request.env["payment.transaction"].sudo().browse(tx_id)
+        if not payment_utils.check_access_token(
+            access_token, tx_sudo.partner_id.id, tx_sudo.amount, tx_sudo.currency_id.id
+        ):
+            raise werkzeug.exceptions.NotFound()  # Don't leak information about ids.
+        if tx_sudo.provider_id.code != "pagos360" or tx_sudo.state not in ["draft", "pending"]:
+            return None
 
-            # Raise an HTTP 404 if the access token is invalid
-            if not payment_utils.check_access_token(
-                access_token, tx_sudo.partner_id.id, tx_sudo.amount, tx_sudo.currency_id.id
-            ):
-                raise werkzeug.exceptions.NotFound()  # Don't leak information about ids.
-            if tx_sudo.provider_id.code != "pagos360" or tx_sudo.state not in ["draft", "pending"]:
-                return request.redirect("/my/home")
-
-            values = tx_sudo._pagos360_get_payment_request()
-            if not values:
-                raise ValidationError(_("No payment request found in Pagos360 for reference %s.", tx_sudo.reference))
-            tx_sudo.write(
-                {
-                    "provider_reference": values.get("id"),
-                    "state": values.get("state", "draft"),
-                }
-            )
-            return request.render("payment_pagos360.rapipago_barcode_print", values)
-        else:
-            # Display the portal homepage to the user
-            return request.redirect("/my/home")
+        values = tx_sudo._pagos360_get_payment_request()
+        if not values:
+            raise ValidationError(_("No payment request found in Pagos360 for reference %s.", tx_sudo.reference))
+        tx_sudo.write(
+            {
+                "provider_reference": values.get("id"),
+                "state": values.get("state", "draft"),
+            }
+        )
+        return values
 
     @http.route(_return_url, type="http", auth="public", methods=["GET", "POST"], csrf=False, save_session=False)
     def pagos360_return_from_checkout(self, **data):
@@ -104,7 +81,7 @@ class Pagos360Controller(portal.CustomerPortal):
         _logger.info("handling redirection from Pagos360 with data:\n%s", pprint.pformat(data))
         return request.redirect("/payment/status")
 
-    @http.route(f"{_webhook_url}", type="http", auth="public", methods=["POST"], csrf=False)
+    @http.route(_webhook_url, type="http", auth="public", methods=["POST"], csrf=False)
     def pagos360_webhook(self, **data):
         """Process the notification data sent by Pagos360 to the webhook.
 

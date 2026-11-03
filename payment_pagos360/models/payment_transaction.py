@@ -67,7 +67,7 @@ class PaymentTransaction(models.Model):
     @api.constrains("amount", "currency_id", "payment_method_id", "provider_id")
     def _check_pagos360_cash_maximum_amount(self):
         """Pagos360 silently skips the coupon above its cash limit, leaving the payer stuck."""
-        maximum_amount = float(self.env["ir.config_parameter"].sudo().get_param("pagos360.cash_maximum_amount", "0"))
+        maximum_amount = self.env["ir.config_parameter"].sudo().get_float("pagos360.cash_maximum_amount", 0.0)
         if not maximum_amount:
             return
         for tx in self.filtered(lambda t: t.provider_code == "pagos360"):
@@ -299,17 +299,12 @@ class PaymentTransaction(models.Model):
         )
         if not payload.get(amount_key):
             return None
-        amount = 0.0
-        if not self.pagos360_adhesion_type:
-            for result in payload.get("request_result", []):
-                amount += result.get("amount", 0.0)
-        elif self.pagos360_adhesion_type == "adhesion":
-            amount += payload.get("first_total", 0.0)
-        elif self.pagos360_adhesion_type == "card_adhesion":
-            amount += payload.get("amount", 0.0)
-
+        if self.pagos360_adhesion_type:
+            amounts = [payload[amount_key]]
+        else:
+            amounts = [result.get("amount", 0.0) for result in payload[amount_key]]
         return {
-            "amount": amount,
+            "amount": sum(amounts, 0.0),
             "currency_code": self.currency_id.name,
         }
 
@@ -359,8 +354,6 @@ class PaymentTransaction(models.Model):
                 if not self.child_transaction_ids:
                     self._pagos360_spawn_child_charge()
             elif payment_status == "paid":
-                if paid_at:
-                    self.pagos360_effective_payment_date = paid_at[:10]
                 self._set_done(extra_allowed_states=("cancel", "error"))
             elif payment_status == "reverted":
                 self.payment_id.action_draft()
@@ -408,15 +401,12 @@ class PaymentTransaction(models.Model):
 
     def _pagos360_get_paid_at_from_request(self, entity_name, entity_id):
         """Fetch entity info from Pagos360 and extract the first available paid_at value."""
-        endpoint_by_entity = {
-            "payment_request": f"/payment-request?id={entity_id}",
-            "card_adhesion": f"/card-adhesion/{entity_id}",
-            "adhesion": f"/adhesion/{entity_id}",
-            "card_debit_request": f"/card-debit-request?id={entity_id}",
-            "debit_request": f"/debit-request?id={entity_id}",
-        }
-        endpoint = endpoint_by_entity.get(entity_name)
-        if not endpoint:
+        # Adhesions are read by path, payment and debit requests by query.
+        if entity_name in const.DEBIT_ENTITY_BY_ADHESION_TYPE:
+            endpoint = self.provider_id._pagos360_entity_path(entity_name, entity_id)
+        elif entity_name in ("payment_request", *const.DEBIT_ENTITY_BY_ADHESION_TYPE.values()):
+            endpoint = f"{self.provider_id._pagos360_entity_path(entity_name)}?id={entity_id}"
+        else:
             return False
 
         try:
@@ -469,11 +459,9 @@ class PaymentTransaction(models.Model):
             _logger.warning("PAGOS360: Missing entity_id or entity_name in payment data")
             return {}
 
-        if entity_name == "card_adhesion":
-            endpoint = f"/card-adhesion/{adhesion_id}"
-        else:
-            endpoint = f"/adhesion/{adhesion_id}"
-
+        endpoint = self.provider_id._pagos360_entity_path(
+            "card_adhesion" if entity_name == "card_adhesion" else "adhesion", adhesion_id
+        )
         adhesion_data = self.provider_id._pagos360_make_request(endpoint, data=None, method="GET")
         if not adhesion_data:
             return {}
@@ -523,7 +511,7 @@ class PaymentTransaction(models.Model):
             self.env.cr.commit()  # pylint: disable=invalid-commit
             if req:
                 entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE[self.token_id.pagos360_adhesion_type]
-                self._process(self.provider_code, self.simulate_webhook(entity_name, req))
+                self._record(self.simulate_webhook(entity_name, req))
                 self.env.cr.commit()  # pylint: disable=invalid-commit
         return super()._send_payment_request()
 
@@ -539,18 +527,26 @@ class PaymentTransaction(models.Model):
         else:
             next_month = today + relativedelta(months=1)
             execution_date = next_month.replace(day=cut_days[0])
-        data = {
-            "card_debit_request": {
-                "description": _("Payment %s") % self.company_id.display_name,
-                "amount": self.amount,
-                "month": execution_date.month,
-                "year": execution_date.year,
-                "card_adhesion_id": int(self.token_id.provider_ref),
-            }
+        payload = {
+            "description": _("Payment %s") % self.company_id.display_name,
+            "amount": self.amount,
+            "month": execution_date.month,
+            "year": execution_date.year,
+            "card_adhesion_id": int(self.token_id.provider_ref),
         }
-        res = self.provider_id._pagos360_make_request("card-debit-request", data=data, method="POST")
-        self.provider_reference = res.get("id")
-        self.pagos360_debit_execution_date = execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS)
+        return self._pagos360_send_debit_request(
+            "card_debit_request", payload, execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS)
+        )
+
+    def _pagos360_send_debit_request(self, entity_name, payload, execution_date):
+        """Create the debit request in Pagos360 and keep its reference and execution date."""
+        res = self.provider_id._pagos360_make_request(
+            self.provider_id._pagos360_entity_path(entity_name), data={entity_name: payload}, method="POST"
+        )
+        # The request already went out: persist its reference before queuing the payment data.
+        self.with_context(payment_safe_write=True).write(
+            {"provider_reference": res.get("id"), "pagos360_debit_execution_date": execution_date}
+        )
         return res
 
     def _pagos360_next_business_day(self, due_date, days=3):
@@ -560,18 +556,13 @@ class PaymentTransaction(models.Model):
     def _pagos360_debit_request(self):
         next_business_day = self.get_debit_due_date()
         execution_date = fields.Date.from_string(next_business_day[:10])
-        data = {
-            "debit_request": {
-                "description": _("Payment %s") % self.company_id.display_name,
-                "first_total": self.amount,
-                "first_due_date": execution_date.strftime("%d-%m-%Y"),
-                "adhesion_id": int(self.token_id.provider_ref),
-            }
+        payload = {
+            "description": _("Payment %s") % self.company_id.display_name,
+            "first_total": self.amount,
+            "first_due_date": execution_date.strftime("%d-%m-%Y"),
+            "adhesion_id": int(self.token_id.provider_ref),
         }
-        res = self.provider_id._pagos360_make_request("debit-request", data=data, method="POST")
-        self.provider_reference = res.get("id")
-        self.pagos360_debit_execution_date = execution_date
-        return res
+        return self._pagos360_send_debit_request("debit_request", payload, execution_date)
 
     def _pagos360_fetch_and_process_transaction(self):
         """Query Pagos360 for the current state of this transaction and process it as a notification.
@@ -587,14 +578,14 @@ class PaymentTransaction(models.Model):
         entities = []
         if self.operation == "validation":
             for entity_name in ("card_adhesion", "adhesion"):
-                endpoint = "/%s?external_reference=%s&page=1" % (entity_name.replace("_", "-"), ref_sanitized)
+                endpoint = f"{provider._pagos360_entity_path(entity_name)}?external_reference={ref_sanitized}&page=1"
                 datas = provider._pagos360_make_request(endpoint, method="GET")
                 entities += [(entity_name, data) for data in datas.get("data") or []]
         elif not self.pagos360_adhesion_type:
             entities.append(("payment_request", self._pagos360_get_payment_request()))
         else:
             entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE[self.pagos360_adhesion_type]
-            endpoint = "/%s?id=%s" % (entity_name.replace("_", "-"), self.provider_reference)
+            endpoint = f"{provider._pagos360_entity_path(entity_name)}?id={self.provider_reference}"
             datas = provider._pagos360_make_request(endpoint, method="GET").get("data") or [None]
             entities.append((entity_name, datas[0]))
 
@@ -603,8 +594,26 @@ class PaymentTransaction(models.Model):
             payload = self.simulate_webhook(entity_name, data)
             if payload:
                 payloads.append(payload)
-                self.sudo()._process(self.provider_code, payload)
+                self.sudo()._record(payload)
         return payloads
+
+    def _pagos360_process_recorded_data(self):
+        """Process now the payment data that `_record` queued for this transaction, as the processing cron does.
+
+        A transaction locked by someone else is left to the cron.
+        """
+        self.ensure_one()
+        txs_to_lock = self | self.source_transaction_id
+        if txs_to_lock.try_lock_for_update() != txs_to_lock:
+            return
+        pending = (
+            self.env["payment.data"]
+            .sudo()
+            .search([("transaction_id", "=", self.id), ("errored", "=", False)], order="id")
+        )
+        for payment_data in pending:
+            self.with_context(payment_safe_write=True)._process(payment_data.payload)
+            payment_data.unlink()
 
     def get_pagos360_info(self, check_payment_state=True):
         result_msg = []
@@ -630,7 +639,7 @@ class PaymentTransaction(models.Model):
 
         Providers in test mode share the sandbox account, so they only run it by hand.
         """
-        for provider in self.env["payment.provider"].search([("code", "=", "pagos360"), ("state", "=", "enabled")]):
+        for provider in self.env["payment.provider"].search([("code", "=", "pagos360"), ("is_live", "=", True)]):
             self._pagos360_collection_control(provider)
 
     @api.model
@@ -645,7 +654,7 @@ class PaymentTransaction(models.Model):
         :rtype: str
         """
         day = provider._pagos360_get_control_date()
-        max_errors = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.control_max_consecutive_errors", 5))
+        max_errors = self.env["ir.config_parameter"].sudo().get_int("pagos360.control_max_consecutive_errors", 5)
         prefix = "PAGOS360 CONTROL provider %s day %s: " % (provider.id, day)
         stats = Counter()
         errors_in_a_row = 0
@@ -655,6 +664,9 @@ class PaymentTransaction(models.Model):
             nonlocal errors_in_a_row
             try:
                 payloads = tx._pagos360_fetch_and_process_transaction()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+                # The control decides on the resulting state, so it cannot wait for the processing cron.
+                tx._pagos360_process_recorded_data()
                 self.env.cr.commit()  # pylint: disable=invalid-commit
             except Exception:
                 self.env.cr.rollback()
@@ -666,6 +678,14 @@ class PaymentTransaction(models.Model):
                 return False
             errors_in_a_row = 0
             stats["failed"] += not payloads
+            try:
+                (tx | tx.source_transaction_id)._post_process_with_lock()
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+            except Exception:
+                # As the processing cron does: it never undoes the processing, the post-processing cron retries it.
+                self.env.cr.rollback()
+                _logger.warning(prefix + "the post-processing of %s failed.", tx.reference, exc_info=True)
+                self.env.ref("payment.post_processing_cron")._trigger()
             return bool(payloads)
 
         try:
@@ -691,7 +711,6 @@ class PaymentTransaction(models.Model):
             "signed_adhesion": provider._pagos360_get_signed_adhesions(since),
         }
         events = {"collection": _("paid"), "chargeback": _("reverted"), "signed_adhesion": _("signed")}
-        state_labels = dict(self._fields["state"]._description_selection(self.env))
         touched = self.browse()
         for kind, rows in sources.items():
             stats[kind] = len(rows)
@@ -703,7 +722,7 @@ class PaymentTransaction(models.Model):
                 if len(tx) != 1:
                     stats["ambiguous" if tx else "unmatched"] += 1
                     # The sandbox account is shared by every test database.
-                    level = logging.INFO if not tx and provider.state == "test" else logging.WARNING
+                    level = logging.INFO if not tx and not provider.is_live else logging.WARNING
                     _logger.log(level, prefix + "%s matches %s transactions.", row_label, len(tx))
                     continue
                 touched |= tx
@@ -727,11 +746,9 @@ class PaymentTransaction(models.Model):
                             event=events[kind],
                             date=format_date(self.env, day),
                             row_id=row_id,
-                            state=state_labels[tx.state],
+                            state=tx._pagos360_state_label(),
                         )
                     )
-                    # A failed check of the next transaction rolls back.
-                    self.env.cr.commit()  # pylint: disable=invalid-commit
         return touched
 
     @api.model
@@ -773,8 +790,7 @@ class PaymentTransaction(models.Model):
             ],
             order="create_date, id",
         ).filtered(lambda tx: tx._pagos360_get_control_due_date() in due_days)
-        max_checks = int(self.env["ir.config_parameter"].sudo().get_param("pagos360.control_max_checks", 50))
-        state_labels = dict(self._fields["state"]._description_selection(self.env))
+        max_checks = self.env["ir.config_parameter"].sudo().get_int("pagos360.control_max_checks", 50)
         if len(due) > max_checks:
             stats["over_limit"] = len(due) - max_checks
             _logger.info(
@@ -796,12 +812,10 @@ class PaymentTransaction(models.Model):
                     "Transaction %(reference)s is still %(state)s in Odoo after its last check against "
                     "Pagos360 on %(date)s. Please review it in Pagos360.",
                     reference=tx.reference,
-                    state=state_labels[tx.state],
+                    state=tx._pagos360_state_label(),
                     date=format_date(self.env, day),
                 )
             )
-            # A failed check of the next transaction rolls back.
-            self.env.cr.commit()  # pylint: disable=invalid-commit
 
     def _pagos360_get_control_due_date(self):
         """Return the day the term of this transaction ends, in Argentina's time, or None if unknown."""
@@ -814,26 +828,26 @@ class PaymentTransaction(models.Model):
             return created + timedelta(days=const.CONTROL_ADHESION_DAYS)
         return created + timedelta(days=self.provider_id.pagos360_coupon_validity_days)
 
+    def _pagos360_state_label(self):
+        self.ensure_one()
+        return dict(self._fields["state"]._description_selection(self.env))[self.state]
+
     def _pagos360_control_post_note(self, message):
         """Leave an internal note, hidden from the portal, on the invoices and sale orders of the transaction."""
         sale_orders = self.sale_order_ids if "sale_order_ids" in self._fields else []
         for document in [*self.invoice_ids, *sale_orders]:
             document.message_post(body=message, subtype_xmlid="mail.mt_note")
+        # A failed check of the next transaction rolls back.
+        self.env.cr.commit()  # pylint: disable=invalid-commit
 
     def pagos360_cancel_transactions(self):
-        for tx in self.filtered(lambda t: t.pagos360_adhesion_type in ["adhesion", "card_adhesion"]):
-            payment_request_id = tx.provider_reference
-            if tx.pagos360_adhesion_type == "adhesion":
-                endpoint = "debit-request"
-            elif tx.pagos360_adhesion_type == "card_adhesion":
-                endpoint = "card-debit-request"
-            else:
-                continue
-            pagos360_tx = tx.provider_id._pagos360_make_request(f"/{endpoint}/{payment_request_id}", method="GET")
+        for tx in self.filtered(lambda t: t.pagos360_adhesion_type in const.DEBIT_ENTITY_BY_ADHESION_TYPE):
+            endpoint = tx.provider_id._pagos360_entity_path(
+                const.DEBIT_ENTITY_BY_ADHESION_TYPE[tx.pagos360_adhesion_type], tx.provider_reference
+            )
+            pagos360_tx = tx.provider_id._pagos360_make_request(endpoint, method="GET")
             if pagos360_tx and pagos360_tx.get("state") == "pending":
-                response_json = tx.provider_id._pagos360_make_request(
-                    f"/{endpoint}/{payment_request_id}/cancel", method="PUT"
-                )
+                response_json = tx.provider_id._pagos360_make_request(f"{endpoint}/cancel", method="PUT")
                 if response_json and response_json.get("state") == "canceled":
                     tx._set_canceled()
         return
