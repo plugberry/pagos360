@@ -711,7 +711,6 @@ class PaymentTransaction(models.Model):
             "signed_adhesion": provider._pagos360_get_signed_adhesions(since),
         }
         events = {"collection": _("paid"), "chargeback": _("reverted"), "signed_adhesion": _("signed")}
-        state_labels = dict(self._fields["state"]._description_selection(self.env))
         touched = self.browse()
         for kind, rows in sources.items():
             stats[kind] = len(rows)
@@ -747,11 +746,9 @@ class PaymentTransaction(models.Model):
                             event=events[kind],
                             date=format_date(self.env, day),
                             row_id=row_id,
-                            state=state_labels[tx.state],
+                            state=tx._pagos360_state_label(),
                         )
                     )
-                    # A failed check of the next transaction rolls back.
-                    self.env.cr.commit()  # pylint: disable=invalid-commit
         return touched
 
     @api.model
@@ -794,7 +791,6 @@ class PaymentTransaction(models.Model):
             order="create_date, id",
         ).filtered(lambda tx: tx._pagos360_get_control_due_date() in due_days)
         max_checks = self.env["ir.config_parameter"].sudo().get_int("pagos360.control_max_checks", 50)
-        state_labels = dict(self._fields["state"]._description_selection(self.env))
         if len(due) > max_checks:
             stats["over_limit"] = len(due) - max_checks
             _logger.info(
@@ -816,12 +812,10 @@ class PaymentTransaction(models.Model):
                     "Transaction %(reference)s is still %(state)s in Odoo after its last check against "
                     "Pagos360 on %(date)s. Please review it in Pagos360.",
                     reference=tx.reference,
-                    state=state_labels[tx.state],
+                    state=tx._pagos360_state_label(),
                     date=format_date(self.env, day),
                 )
             )
-            # A failed check of the next transaction rolls back.
-            self.env.cr.commit()  # pylint: disable=invalid-commit
 
     def _pagos360_get_control_due_date(self):
         """Return the day the term of this transaction ends, in Argentina's time, or None if unknown."""
@@ -834,11 +828,17 @@ class PaymentTransaction(models.Model):
             return created + timedelta(days=const.CONTROL_ADHESION_DAYS)
         return created + timedelta(days=self.provider_id.pagos360_coupon_validity_days)
 
+    def _pagos360_state_label(self):
+        self.ensure_one()
+        return dict(self._fields["state"]._description_selection(self.env))[self.state]
+
     def _pagos360_control_post_note(self, message):
         """Leave an internal note, hidden from the portal, on the invoices and sale orders of the transaction."""
         sale_orders = self.sale_order_ids if "sale_order_ids" in self._fields else []
         for document in [*self.invoice_ids, *sale_orders]:
             document.message_post(body=message, subtype_xmlid="mail.mt_note")
+        # A failed check of the next transaction rolls back.
+        self.env.cr.commit()  # pylint: disable=invalid-commit
 
     def pagos360_cancel_transactions(self):
         for tx in self.filtered(lambda t: t.pagos360_adhesion_type in const.DEBIT_ENTITY_BY_ADHESION_TYPE):
