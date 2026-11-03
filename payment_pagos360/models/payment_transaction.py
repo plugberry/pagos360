@@ -534,22 +534,25 @@ class PaymentTransaction(models.Model):
         else:
             next_month = today + relativedelta(months=1)
             execution_date = next_month.replace(day=cut_days[0])
-        data = {
-            "card_debit_request": {
-                "description": _("Payment %s") % self.company_id.display_name,
-                "amount": self.amount,
-                "month": execution_date.month,
-                "year": execution_date.year,
-                "card_adhesion_id": int(self.token_id.provider_ref),
-            }
+        payload = {
+            "description": _("Payment %s") % self.company_id.display_name,
+            "amount": self.amount,
+            "month": execution_date.month,
+            "year": execution_date.year,
+            "card_adhesion_id": int(self.token_id.provider_ref),
         }
-        res = self.provider_id._pagos360_make_request("card-debit-request", data=data, method="POST")
+        return self._pagos360_send_debit_request(
+            "card_debit_request", payload, execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS)
+        )
+
+    def _pagos360_send_debit_request(self, entity_name, payload, execution_date):
+        """Create the debit request in Pagos360 and keep its reference and execution date."""
+        res = self.provider_id._pagos360_make_request(
+            self.provider_id._pagos360_entity_path(entity_name), data={entity_name: payload}, method="POST"
+        )
         # The request already went out: persist its reference before queuing the payment data.
         self.with_context(payment_safe_write=True).write(
-            {
-                "provider_reference": res.get("id"),
-                "pagos360_debit_execution_date": execution_date + timedelta(days=const.CARD_DEBIT_DAYS_DAYS),
-            }
+            {"provider_reference": res.get("id"), "pagos360_debit_execution_date": execution_date}
         )
         return res
 
@@ -560,20 +563,13 @@ class PaymentTransaction(models.Model):
     def _pagos360_debit_request(self):
         next_business_day = self.get_debit_due_date()
         execution_date = fields.Date.from_string(next_business_day[:10])
-        data = {
-            "debit_request": {
-                "description": _("Payment %s") % self.company_id.display_name,
-                "first_total": self.amount,
-                "first_due_date": execution_date.strftime("%d-%m-%Y"),
-                "adhesion_id": int(self.token_id.provider_ref),
-            }
+        payload = {
+            "description": _("Payment %s") % self.company_id.display_name,
+            "first_total": self.amount,
+            "first_due_date": execution_date.strftime("%d-%m-%Y"),
+            "adhesion_id": int(self.token_id.provider_ref),
         }
-        res = self.provider_id._pagos360_make_request("debit-request", data=data, method="POST")
-        # The request already went out: persist its reference before queuing the payment data.
-        self.with_context(payment_safe_write=True).write(
-            {"provider_reference": res.get("id"), "pagos360_debit_execution_date": execution_date}
-        )
-        return res
+        return self._pagos360_send_debit_request("debit_request", payload, execution_date)
 
     def _pagos360_fetch_and_process_transaction(self):
         """Query Pagos360 for the current state of this transaction and process it as a notification.
