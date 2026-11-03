@@ -212,23 +212,29 @@ class PaymentProvider(models.Model):
             len(brands),
             len(installments),
         )
-        # 'next': act_window_close is what makes the web client reload the record after the
-        # notification closes — without it the toast shows but the available_*/excluded_* fields
-        # on screen stay stale. Same pattern as ensure_webhook() above.
-        return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "message": _(
-                    "Se sincronizaron %(installments)s cuotas y %(brands)s marcas de tarjeta disponibles.",
-                    installments=len(installments),
-                    brands=len(brands),
-                ),
-                "sticky": False,
-                "type": "success",
-                "next": {"type": "ir.actions.act_window_close"},
-            },
-        }
+        # The record has to reload, or the available_*/excluded_* fields on screen stay stale.
+        return self._pagos360_notification(
+            _(
+                "Se sincronizaron %(installments)s cuotas y %(brands)s marcas de tarjeta disponibles.",
+                installments=len(installments),
+                brands=len(brands),
+            ),
+            notification_type="success",
+            reload=True,
+        )
+
+    @api.model
+    def _pagos360_notification(self, message, notification_type=None, sticky=False, reload=False):
+        """Return the client action that shows `message` in a toast.
+
+        With `reload`, act_window_close makes the web client reload the record when the toast closes.
+        """
+        params = {"message": message, "sticky": sticky}
+        if notification_type:
+            params["type"] = notification_type
+        if reload:
+            params["next"] = {"type": "ir.actions.act_window_close"}
+        return {"type": "ir.actions.client", "tag": "display_notification", "params": params}
 
     def _pagos360_get_api_url(self):
         self.ensure_one()
@@ -323,45 +329,33 @@ class PaymentProvider(models.Model):
         providers = self.filtered(lambda p: p.code == "pagos360" and p.active)
         summaries = [self.env["payment.transaction"]._pagos360_collection_control(p) for p in providers]
         message = "\n".join(summaries) or _("There is no Pagos360 provider enabled or in test mode.")
-        return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {"message": message, "sticky": True},
-        }
+        return self._pagos360_notification(message, sticky=True)
 
-    @api.depends("pagos360_api_key", "pagos360_test_api_key")
     def ensure_webhook(self):
         base_url = self.get_base_url().replace("http:", "https:")
         webhook_url = urljoin(base_url, Pagos360Controller._webhook_url)
+        event_types = self._get_event_types()
 
         message = _("Your Pagos360 Webhook was already set up.")
         notification_type = "success"
-        if not self._webhook_is_set(webhook_url):
-            data = {"webhook": {"url": webhook_url, "event_types": self._get_event_types()}}
+        if not self._webhook_is_set(webhook_url, event_types):
+            data = {"webhook": {"url": webhook_url, "event_types": event_types}}
             response = self._pagos360_make_request("/webhook", data=data)
             if response.get("id"):
                 message = _("Your Pagos360 Webhook was successfully set up.")
-                notification_type = "success"
             else:
                 message = _("Error setting your webhooks.")
                 notification_type = "danger"
-        return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "message": message,
-                "sticky": False,
-                "type": notification_type,
-                "next": {"type": "ir.actions.act_window_close"},
-            },
-        }
+        return self._pagos360_notification(message, notification_type=notification_type, reload=True)
 
-    def _webhook_is_set(self, webhook_url):
+    def _webhook_is_set(self, webhook_url, event_types=None):
         # Para chequear si el webhook existe realizamos un GET a /webhook
         # Esto nos regresa todas las urls configuradas y los tipos de eventos para los cual se configuró un webhook
         # Por lo que buscamos si existe el webhook para nuestra url
         # Si existe comparamos los eventos seteados
         # En caso de haber dierencias hacemos un DELETE del webhook para retornar False y que luego se envien de nuevo los webhook
+        if event_types is None:
+            event_types = self._get_event_types()
         webhooks = self._pagos360_make_request("/webhook", method="GET")
         if webhooks and webhooks.get("data"):
             data = webhooks.get("data")
@@ -369,7 +363,7 @@ class PaymentProvider(models.Model):
                 if webhook.get("url") == webhook_url:
                     webhook_id = webhook.get("id")
                     webhook_events = [event["id"] for event in webhook["events"]]
-                    if set(webhook_events) == set(self._get_event_types()):
+                    if set(webhook_events) == set(event_types):
                         return True
                     else:
                         self._pagos360_make_request("/webhook/%s" % webhook_id, method="DELETE")
