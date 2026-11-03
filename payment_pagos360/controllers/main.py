@@ -47,12 +47,7 @@ class Pagos360Controller(portal.CustomerPortal):
             values = tx_sudo._pagos360_get_payment_request()
             if not values:
                 raise ValidationError(_("No payment request found in Pagos360 for reference %s.", tx_sudo.reference))
-            tx_sudo.write(
-                {
-                    "provider_reference": values.get("id"),
-                    "state": values.get("state", "draft"),
-                }
-            )
+            tx_sudo._record(tx_sudo.simulate_webhook("payment_request", values))
             return request.redirect(values["pdf_url"], local=False)
         else:
             # Display the portal homepage to the user
@@ -84,12 +79,7 @@ class Pagos360Controller(portal.CustomerPortal):
             values = tx_sudo._pagos360_get_payment_request()
             if not values:
                 raise ValidationError(_("No payment request found in Pagos360 for reference %s.", tx_sudo.reference))
-            tx_sudo.write(
-                {
-                    "provider_reference": values.get("id"),
-                    "state": values.get("state", "draft"),
-                }
-            )
+            tx_sudo._record(tx_sudo.simulate_webhook("payment_request", values))
             return request.render("payment_pagos360.rapipago_barcode_print", values)
         else:
             # Display the portal homepage to the user

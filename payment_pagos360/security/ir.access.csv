@@ -1,0 +1,7 @@
+id,name,model_id,group_id/id,operation,domain
+access_pagos360_channel_user,pagos360.channel.user,pagos360.channel,base.group_user,r,
+access_pagos360_channel_system,pagos360.channel.system,pagos360.channel,base.group_system,crud,
+access_pagos360_installment_user,pagos360.installment.user,pagos360.installment,base.group_user,r,
+access_pagos360_installment_system,pagos360.installment.system,pagos360.installment,base.group_system,crud,
+access_pagos360_card_brand_user,pagos360.card.brand.user,pagos360.card.brand,base.group_user,r,
+access_pagos360_card_brand_system,pagos360.card.brand.system,pagos360.card.brand,base.group_system,crud,
