@@ -299,17 +299,12 @@ class PaymentTransaction(models.Model):
         )
         if not payload.get(amount_key):
             return None
-        amount = 0.0
-        if not self.pagos360_adhesion_type:
-            for result in payload.get("request_result", []):
-                amount += result.get("amount", 0.0)
-        elif self.pagos360_adhesion_type == "adhesion":
-            amount += payload.get("first_total", 0.0)
-        elif self.pagos360_adhesion_type == "card_adhesion":
-            amount += payload.get("amount", 0.0)
-
+        if self.pagos360_adhesion_type:
+            amounts = [payload[amount_key]]
+        else:
+            amounts = [result.get("amount", 0.0) for result in payload[amount_key]]
         return {
-            "amount": amount,
+            "amount": sum(amounts, 0.0),
             "currency_code": self.currency_id.name,
         }
 
@@ -359,8 +354,6 @@ class PaymentTransaction(models.Model):
                 if not self.child_transaction_ids:
                     self._pagos360_spawn_child_charge()
             elif payment_status == "paid":
-                if paid_at:
-                    self.pagos360_effective_payment_date = paid_at[:10]
                 self._set_done(extra_allowed_states=("cancel", "error"))
             elif payment_status == "reverted":
                 self.payment_id.action_draft()
