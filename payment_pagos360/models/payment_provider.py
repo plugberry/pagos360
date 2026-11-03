@@ -237,6 +237,11 @@ class PaymentProvider(models.Model):
         else:
             return const.API_TEST_URL
 
+    @api.model
+    def _pagos360_entity_path(self, entity_name, *parts):
+        """Return the API path of an entity: ("card_adhesion", 7, "cancel") -> "/card-adhesion/7/cancel"."""
+        return "/".join(["", entity_name.replace("_", "-"), *map(str, parts)])
+
     def _pagos360_get_api_key(self):
         self.ensure_one()
         if self.is_live:

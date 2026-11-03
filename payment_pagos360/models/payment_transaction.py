@@ -408,15 +408,12 @@ class PaymentTransaction(models.Model):
 
     def _pagos360_get_paid_at_from_request(self, entity_name, entity_id):
         """Fetch entity info from Pagos360 and extract the first available paid_at value."""
-        endpoint_by_entity = {
-            "payment_request": f"/payment-request?id={entity_id}",
-            "card_adhesion": f"/card-adhesion/{entity_id}",
-            "adhesion": f"/adhesion/{entity_id}",
-            "card_debit_request": f"/card-debit-request?id={entity_id}",
-            "debit_request": f"/debit-request?id={entity_id}",
-        }
-        endpoint = endpoint_by_entity.get(entity_name)
-        if not endpoint:
+        # Adhesions are read by path, payment and debit requests by query.
+        if entity_name in const.DEBIT_ENTITY_BY_ADHESION_TYPE:
+            endpoint = self.provider_id._pagos360_entity_path(entity_name, entity_id)
+        elif entity_name in ("payment_request", *const.DEBIT_ENTITY_BY_ADHESION_TYPE.values()):
+            endpoint = f"{self.provider_id._pagos360_entity_path(entity_name)}?id={entity_id}"
+        else:
             return False
 
         try:
@@ -469,11 +466,9 @@ class PaymentTransaction(models.Model):
             _logger.warning("PAGOS360: Missing entity_id or entity_name in payment data")
             return {}
 
-        if entity_name == "card_adhesion":
-            endpoint = f"/card-adhesion/{adhesion_id}"
-        else:
-            endpoint = f"/adhesion/{adhesion_id}"
-
+        endpoint = self.provider_id._pagos360_entity_path(
+            "card_adhesion" if entity_name == "card_adhesion" else "adhesion", adhesion_id
+        )
         adhesion_data = self.provider_id._pagos360_make_request(endpoint, data=None, method="GET")
         if not adhesion_data:
             return {}
@@ -594,14 +589,14 @@ class PaymentTransaction(models.Model):
         entities = []
         if self.operation == "validation":
             for entity_name in ("card_adhesion", "adhesion"):
-                endpoint = "/%s?external_reference=%s&page=1" % (entity_name.replace("_", "-"), ref_sanitized)
+                endpoint = f"{provider._pagos360_entity_path(entity_name)}?external_reference={ref_sanitized}&page=1"
                 datas = provider._pagos360_make_request(endpoint, method="GET")
                 entities += [(entity_name, data) for data in datas.get("data") or []]
         elif not self.pagos360_adhesion_type:
             entities.append(("payment_request", self._pagos360_get_payment_request()))
         else:
             entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE[self.pagos360_adhesion_type]
-            endpoint = "/%s?id=%s" % (entity_name.replace("_", "-"), self.provider_reference)
+            endpoint = f"{provider._pagos360_entity_path(entity_name)}?id={self.provider_reference}"
             datas = provider._pagos360_make_request(endpoint, method="GET").get("data") or [None]
             entities.append((entity_name, datas[0]))
 
@@ -857,19 +852,13 @@ class PaymentTransaction(models.Model):
             document.message_post(body=message, subtype_xmlid="mail.mt_note")
 
     def pagos360_cancel_transactions(self):
-        for tx in self.filtered(lambda t: t.pagos360_adhesion_type in ["adhesion", "card_adhesion"]):
-            payment_request_id = tx.provider_reference
-            if tx.pagos360_adhesion_type == "adhesion":
-                endpoint = "debit-request"
-            elif tx.pagos360_adhesion_type == "card_adhesion":
-                endpoint = "card-debit-request"
-            else:
-                continue
-            pagos360_tx = tx.provider_id._pagos360_make_request(f"/{endpoint}/{payment_request_id}", method="GET")
+        for tx in self.filtered(lambda t: t.pagos360_adhesion_type in const.DEBIT_ENTITY_BY_ADHESION_TYPE):
+            endpoint = tx.provider_id._pagos360_entity_path(
+                const.DEBIT_ENTITY_BY_ADHESION_TYPE[tx.pagos360_adhesion_type], tx.provider_reference
+            )
+            pagos360_tx = tx.provider_id._pagos360_make_request(endpoint, method="GET")
             if pagos360_tx and pagos360_tx.get("state") == "pending":
-                response_json = tx.provider_id._pagos360_make_request(
-                    f"/{endpoint}/{payment_request_id}/cancel", method="PUT"
-                )
+                response_json = tx.provider_id._pagos360_make_request(f"{endpoint}/cancel", method="PUT")
                 if response_json and response_json.get("state") == "canceled":
                     tx._set_canceled()
         return

@@ -50,10 +50,10 @@ class PaymentToken(models.Model):
 
         if not self.env.context.get("is_notification"):
             for rec in self.filtered(lambda x: x.provider_code == "pagos360"):
-                endpoint = "adhesion" if rec.pagos360_adhesion_type == "adhesion" else "card-adhesion"
-                id = rec.provider_ref
+                entity_name = "adhesion" if rec.pagos360_adhesion_type == "adhesion" else "card_adhesion"
+                endpoint = rec.provider_id._pagos360_entity_path(entity_name, rec.provider_ref, "cancel")
                 try:
-                    rec.provider_id._pagos360_make_request(f"/{endpoint}/{id}/cancel", method="PUT")
+                    rec.provider_id._pagos360_make_request(endpoint, method="PUT")
                 except RequestException:
                     _logger.exception("Unable to delete token in PAGOS360")
 
