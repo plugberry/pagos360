@@ -253,6 +253,8 @@ class PaymentTransaction(models.Model):
             'payment_request': f'/payment-request?id={entity_id}',
             'card_adhesion': f'/card-adhesion/{entity_id}',
             'adhesion': f'/adhesion/{entity_id}',
+            'card_debit_request': f'/card-debit-request?id={entity_id}',
+            'debit_request': f'/debit-request?id={entity_id}',
         }
         endpoint = endpoint_by_entity.get(entity_name)
         if not endpoint:
@@ -282,7 +284,12 @@ class PaymentTransaction(models.Model):
             return False
 
         if isinstance(data, list):
-            for item in data:
+            # A debit may carry several results; only the collected one holds the real payment date.
+            collected = [
+                item for item in data
+                if isinstance(item, dict) and str(item.get('type', '')).startswith('collected')
+            ]
+            for item in collected or data:
                 paid_at = self._pagos360_extract_paid_at(item)
                 if paid_at:
                     return paid_at
