@@ -442,7 +442,11 @@ class PaymentTransaction(models.Model):
             return False
 
         if isinstance(data, list):
-            for item in data:
+            # A debit may carry several results; only the collected one holds the real payment date.
+            collected = [
+                item for item in data if isinstance(item, dict) and str(item.get("type", "")).startswith("collected")
+            ]
+            for item in collected or data:
                 paid_at = self._pagos360_extract_paid_at(item)
                 if paid_at:
                     return paid_at
