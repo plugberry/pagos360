@@ -262,8 +262,6 @@ class PaymentTransaction(models.Model):
             ]
         else:
             domain = [("reference", "=", payload.get("external_reference")), ("provider_code", "=", "pagos360")]
-        if payload.get("entity_name") == "payment_request":
-            domain.append(["pagos360_adhesion_type", "=", False])
         tx = self.search(domain)
         if not tx:
             _logger.warning("Pagos360: No transaction found matching reference %s.", payment_data.get("ref"))
