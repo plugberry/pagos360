@@ -474,7 +474,7 @@ class PaymentTransaction(models.Model):
             )
         elif entity_name == "adhesion":
             payment_details = "Debito automático en CBU: {} ****{}".format(
-                adhesion_data.get("bank"), adhesion_data.get("cbu_number")
+                adhesion_data.get("bank"), (adhesion_data.get("cbu_number") or "")[-5:]
             )
         else:
             payment_details = ""
