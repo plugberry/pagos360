@@ -136,6 +136,10 @@ class PaymentTransaction(models.Model):
         elif self.payment_method_code == "rapipago":
             access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
             api_url = "/payment/pagos360/rapipago?tx_id=%s&access_token=%s" % (self.id, access_token)
+        else:
+            raise ValidationError(
+                _("Pagos360: payment method %(method)s is not supported.", method=self.payment_method_code)
+            )
 
         return {
             "api_url": api_url,
@@ -262,8 +266,6 @@ class PaymentTransaction(models.Model):
             ]
         else:
             domain = [("reference", "=", payload.get("external_reference")), ("provider_code", "=", "pagos360")]
-        if payload.get("entity_name") == "payment_request":
-            domain.append(["pagos360_adhesion_type", "=", False])
         tx = self.search(domain)
         if not tx:
             _logger.warning("Pagos360: No transaction found matching reference %s.", payment_data.get("ref"))
@@ -472,7 +474,7 @@ class PaymentTransaction(models.Model):
             )
         elif entity_name == "adhesion":
             payment_details = "Debito automático en CBU: {} ****{}".format(
-                adhesion_data.get("bank"), adhesion_data.get("cbu_number")
+                adhesion_data.get("bank"), (adhesion_data.get("cbu_number") or "")[-5:]
             )
         else:
             payment_details = ""
