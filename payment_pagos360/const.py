@@ -1,4 +1,5 @@
 API_URL = "https://api.pagos360.com"
+DEBIT_ENTITY_BY_ADHESION_TYPE = {"card_adhesion": "card_debit_request", "adhesion": "debit_request"}
 API_TEST_URL = "https://api.sandbox.pagos360.com"
 
 DEFAULT_PAYMENT_METHODS_CODES = [
