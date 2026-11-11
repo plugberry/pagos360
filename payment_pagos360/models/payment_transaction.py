@@ -137,6 +137,10 @@ class PaymentTransaction(models.Model):
         elif self.payment_method_code == "rapipago":
             access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
             api_url = "/payment/pagos360/rapipago?tx_id=%s&access_token=%s" % (self.id, access_token)
+        else:
+            raise ValidationError(
+                _("Pagos360: payment method %(method)s is not supported.", method=self.payment_method_code)
+            )
 
         return {
             "api_url": api_url,
@@ -202,18 +206,13 @@ class PaymentTransaction(models.Model):
         3. Sin toggle o sin facturas elegibles: devuelve min_day.
         """
         provider = self.provider_id
-
-        if provider.pagos360_debit_use_invoice_due:
-            invoice_due = self._pagos360_get_invoice_due_date()
-            min_day_raw = self._pagos360_next_business_day(date.today(), days=3)
-            if invoice_due:
-                min_day = fields.Date.from_string(min_day_raw[:10])
-                if min_day >= invoice_due:
-                    return min_day_raw
-                return self._pagos360_next_business_day(invoice_due - timedelta(days=1), days=1)
+        min_day_raw = self._pagos360_next_business_day(date.today(), days=provider.pagos360_debit_execution_days)
+        if not provider.pagos360_debit_use_invoice_due:
             return min_day_raw
-
-        return self._pagos360_next_business_day(date.today(), days=provider.pagos360_debit_execution_days)
+        invoice_due = self._pagos360_get_invoice_due_date()
+        if not invoice_due or fields.Date.from_string(min_day_raw[:10]) >= invoice_due:
+            return min_day_raw
+        return self._pagos360_next_business_day(invoice_due - timedelta(days=1), days=1)
 
     def get_second_due_values(self):
         second_due_date = fields.Datetime.now() + timedelta(days=self.provider_id.second_validity_days)
@@ -487,7 +486,7 @@ class PaymentTransaction(models.Model):
             )
         elif entity_name == "adhesion":
             payment_details = "Debito automático en CBU: {} ****{}".format(
-                adhesion_data.get("bank"), adhesion_data.get("cbu_number")
+                adhesion_data.get("bank"), (adhesion_data.get("cbu_number") or "")[-5:]
             )
         else:
             payment_details = ""
