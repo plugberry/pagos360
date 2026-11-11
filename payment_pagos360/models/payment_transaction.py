@@ -136,6 +136,10 @@ class PaymentTransaction(models.Model):
         elif self.payment_method_code == "rapipago":
             access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
             api_url = "/payment/pagos360/rapipago?tx_id=%s&access_token=%s" % (self.id, access_token)
+        else:
+            raise ValidationError(
+                _("Pagos360: payment method %(method)s is not supported.", method=self.payment_method_code)
+            )
 
         return {
             "api_url": api_url,
