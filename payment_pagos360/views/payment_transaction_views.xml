@@ -5,6 +5,22 @@
         <field name="model">payment.transaction</field>
         <field name="inherit_id" ref="payment.payment_transaction_form"/>
         <field name="arch" type="xml">
+            <header position="inside">
+                <button string="Simulate Payment"
+                        type="object"
+                        name="action_pagos360_simulate_paid"
+                        class="oe_highlight"
+                        invisible="provider_code != 'pagos360' or pagos360_provider_is_live or operation == 'validation' or state not in ('draft', 'pending')"/>
+                <button string="Simulate Rejection"
+                        type="object"
+                        name="action_pagos360_simulate_rejected"
+                        invisible="provider_code != 'pagos360' or pagos360_provider_is_live or operation == 'validation' or state not in ('draft', 'pending')"/>
+                <button string="Simulate Reversal"
+                        type="object"
+                        name="action_pagos360_simulate_reverted"
+                        confirm="This cancels the payment and undoes its reconciliation, as a real Pagos360 reversal does."
+                        invisible="provider_code != 'pagos360' or pagos360_provider_is_live or operation == 'validation' or state != 'done'"/>
+            </header>
             <xpath expr="//field[@name='provider_reference']" position="after">
                 <field name="pagos360_adhesion_type"
                        invisible="provider_code != 'pagos360'"/>
