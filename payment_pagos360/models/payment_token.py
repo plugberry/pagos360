@@ -6,6 +6,8 @@ from odoo import _, api, fields, models
 from odoo.tools import config
 from requests.exceptions import RequestException
 
+from .. import const
+
 _logger = logging.getLogger(__name__)
 
 
@@ -50,10 +52,10 @@ class PaymentToken(models.Model):
 
         if not self.env.context.get("is_notification"):
             for rec in self.filtered(lambda x: x.provider_code == "pagos360"):
-                endpoint = "adhesion" if rec.pagos360_adhesion_type == "adhesion" else "card-adhesion"
-                id = rec.provider_ref
+                entity_name = "adhesion" if rec.pagos360_adhesion_type == "adhesion" else "card_adhesion"
+                endpoint = rec.provider_id._pagos360_entity_path(entity_name, rec.provider_ref, "cancel")
                 try:
-                    rec.provider_id._pagos360_make_request(f"/{endpoint}/{id}/cancel", method="PUT")
+                    rec.provider_id._pagos360_make_request(endpoint, method="PUT")
                 except RequestException:
                     _logger.exception("Unable to delete token in PAGOS360")
 
@@ -61,52 +63,34 @@ class PaymentToken(models.Model):
         from_date = datetime.strftime(fields.Date.today() - timedelta(days=days_frame), "%d-%m-%Y")
         to_date = datetime.strftime(fields.Date.today(), "%d-%m-%Y")
 
-        card_adhesions = self.filtered(
-            lambda x: x.pagos360_adhesion_type == "card_adhesion" and x.provider_code == "pagos360"
-        )
         message = ""
-        for provider_id in card_adhesions.mapped("provider_id"):
-            current_page = 1
-            total_pages = 1
-            provider_adhesions = card_adhesions.filtered(lambda x: x.provider_id == provider_id)
-            provider_references = provider_adhesions.mapped("pagos360_external_reference")
+        for adhesion_type, reference_field in (
+            ("card_adhesion", "pagos360_external_reference"),
+            ("adhesion", "provider_ref"),
+        ):
+            adhesions = self.filtered(
+                lambda x, t=adhesion_type: x.pagos360_adhesion_type == t and x.provider_code == "pagos360"
+            )
+            debit_path = self.env["payment.provider"]._pagos360_entity_path(
+                const.DEBIT_ENTITY_BY_ADHESION_TYPE[adhesion_type]
+            )
+            for provider_id in adhesions.mapped("provider_id"):
+                current_page = 1
+                total_pages = 1
+                provider_references = adhesions.filtered(lambda x: x.provider_id == provider_id).mapped(reference_field)
 
-            while current_page <= total_pages:
-                data = provider_id._pagos360_make_request(
-                    f"/card-debit-request?created_at_gte={from_date}&created_at_lte={to_date}&page={current_page}",
-                    method="GET",
-                )
-                current_page = data.get("current_page", 1) + 1
-                items_per_page = data.get("items_per_page", 20)
-                total_count = data.get("total_count", 0)
-                total_pages = ceil(total_count / items_per_page)
-                for transaction in data.get("data", []):
-                    if str(transaction.get("adhesion", {}).get("id", "")) in provider_references:
-                        message += _(
-                            f"Pagos360: Similar payment found {transaction['id']} for  {transaction['adhesion'].get('adhesion_holder_name')}, {transaction['state']} {transaction['first_total']}\n"
-                        )
-
-        cbu_adhesions = self.filtered(
-            lambda x: x.pagos360_adhesion_type == "adhesion" and x.provider_code == "pagos360"
-        )
-        for provider_id in cbu_adhesions.mapped("provider_id"):
-            current_page = 1
-            total_pages = 1
-            provider_adhesions = cbu_adhesions.filtered(lambda x: x.provider_id == provider_id)
-            provider_references = provider_adhesions.mapped("provider_ref")
-
-            while current_page <= total_pages:
-                data = provider_id._pagos360_make_request(
-                    f"/debit-request?created_at_gte={from_date}&created_at_lte={to_date}&page={current_page}",
-                    method="GET",
-                )
-                current_page = data.get("current_page", 1) + 1
-                items_per_page = data.get("items_per_page", 20)
-                total_count = data.get("total_count", 0)
-                total_pages = ceil(total_count / items_per_page)
-                for transaction in data.get("data", []):
-                    if str(transaction.get("adhesion", {}).get("id", "")) in provider_references:
-                        message += _(
-                            f"Pagos360: Similar payment found {transaction['id']} for  {transaction['adhesion'].get('adhesion_holder_name')}, {transaction['state']} {transaction['first_total']}\n"
-                        )
+                while current_page <= total_pages:
+                    data = provider_id._pagos360_make_request(
+                        f"{debit_path}?created_at_gte={from_date}&created_at_lte={to_date}&page={current_page}",
+                        method="GET",
+                    )
+                    current_page = data.get("current_page", 1) + 1
+                    items_per_page = data.get("items_per_page", 20)
+                    total_count = data.get("total_count", 0)
+                    total_pages = ceil(total_count / items_per_page)
+                    for transaction in data.get("data", []):
+                        if str(transaction.get("adhesion", {}).get("id", "")) in provider_references:
+                            message += _(
+                                f"Pagos360: Similar payment found {transaction['id']} for  {transaction['adhesion'].get('adhesion_holder_name')}, {transaction['state']} {transaction['first_total']}\n"
+                            )
         return message
