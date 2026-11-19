@@ -10,3 +10,4 @@ from . import test_webhook_amount
 from . import test_webhook_forgery
 from . import test_provider_credentials
 from . import test_safe_write
+from . import test_ensure_webhook
