@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta
+from urllib.parse import urlparse
 
 import pytz
 import requests
@@ -324,10 +325,15 @@ class PaymentProvider(models.Model):
             "params": {"message": message, "sticky": True},
         }
 
+    def _pagos360_get_webhook_base_url(self):
+        # The platform domain does not change when a website moves; get_base_url() follows the
+        # domain of whoever presses the button (website_payment).
+        platform_url = self.env["ir.config_parameter"].sudo().get_str("saas_client.platform_url")
+        return (platform_url or self.get_base_url()).replace("http:", "https:")
+
     @api.depends("pagos360_api_key", "pagos360_test_api_key")
     def ensure_webhook(self):
-        base_url = self.get_base_url().replace("http:", "https:")
-        webhook_url = urljoin(base_url, Pagos360Controller._webhook_url)
+        webhook_url = urljoin(self._pagos360_get_webhook_base_url(), Pagos360Controller._webhook_url)
 
         message = _("Your Pagos360 Webhook was already set up.")
         notification_type = "success"
@@ -351,24 +357,40 @@ class PaymentProvider(models.Model):
             },
         }
 
+    @api.model
+    def _pagos360_is_odoo_webhook(self, url):
+        return urlparse(url or "").path.rstrip("/") == Pagos360Controller._webhook_url
+
+    def _pagos360_get_webhooks(self):
+        # The API pages the list (20 per page by default)
+        webhooks, page = [], 1
+        while True:
+            response = self._pagos360_make_request(f"/webhook?limit=100&page={page}", method="GET") or {}
+            data = response.get("data") or []
+            webhooks += data
+            if not data or len(webhooks) >= response.get("total_count", 0):
+                return webhooks
+            page += 1
+
     def _webhook_is_set(self, webhook_url):
-        # Para chequear si el webhook existe realizamos un GET a /webhook
-        # Esto nos regresa todas las urls configuradas y los tipos de eventos para los cual se configuró un webhook
-        # Por lo que buscamos si existe el webhook para nuestra url
-        # Si existe comparamos los eventos seteados
-        # En caso de haber dierencias hacemos un DELETE del webhook para retornar False y que luego se envien de nuevo los webhook
-        webhooks = self._pagos360_make_request("/webhook", method="GET")
-        if webhooks and webhooks.get("data"):
-            data = webhooks.get("data")
-            for webhook in data:
-                if webhook.get("url") == webhook_url:
-                    webhook_id = webhook.get("id")
-                    webhook_events = [event["id"] for event in webhook["events"]]
-                    if set(webhook_events) == set(self._get_event_types()):
-                        return True
-                    else:
-                        self._pagos360_make_request("/webhook/%s" % webhook_id, method="DELETE")
-        return False
+        """Return whether webhook_url is registered with the current event types.
+
+        Deletes it when its events differ, so it is created again. In production it also deletes
+        the Odoo webhooks of other domains; in test mode it does not, because the sandbox account
+        is shared by many databases. Webhooks of third parties (another path) are left untouched.
+        """
+        is_set = False
+        for webhook in self._pagos360_get_webhooks():
+            url = webhook.get("url")
+            if url == webhook_url:
+                webhook_events = {event["id"] for event in webhook["events"]}
+                if webhook_events == set(self._get_event_types()):
+                    is_set = True
+                    continue
+            elif not self.is_live or not self._pagos360_is_odoo_webhook(url):
+                continue
+            self._pagos360_make_request("/webhook/%s" % webhook.get("id"), method="DELETE")
+        return is_set
 
     def handled_event_types(self):
         # Se puede heredar en otros modulos para agregar nuevos webhooks
