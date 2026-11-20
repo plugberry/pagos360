@@ -9,7 +9,7 @@ class TestAdhesionFlow(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False})
         cls.partner = cls.env["res.partner"].create({"name": "Test Buyer"})
         cls.payment_method = cls.env.ref("payment_pagos360.payment_method_pagos360")
         cls.currency = cls.env.company.currency_id
@@ -75,7 +75,7 @@ class TestAdhesionFlow(TransactionCase):
                 "token_id": token.id if token else False,
             }
         )
-        tx._set_done()
+        tx.with_context(payment_safe_write=True)._set_done()
         return tx
 
     def test_spawn_creates_child_when_conditions_met(self):
