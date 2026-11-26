@@ -1,5 +1,6 @@
 import logging
 import pprint
+import traceback
 from collections import Counter
 from datetime import date, timedelta
 
@@ -618,20 +619,31 @@ class PaymentTransaction(models.Model):
     def _pagos360_process_recorded_data(self):
         """Process now the payment data that `_record` queued for this transaction, as the processing cron does.
 
-        A transaction locked by someone else is left to the cron.
+        A payment data that fails is marked as errored and the next one is processed.
+
+        :return: False if the transaction is locked by someone else, who is left to process it.
+        :rtype: bool
         """
         self.ensure_one()
         txs_to_lock = self | self.source_transaction_id
         if txs_to_lock.try_lock_for_update() != txs_to_lock:
-            return
+            return False
         pending = (
             self.env["payment.data"]
             .sudo()
             .search([("transaction_id", "=", self.id), ("errored", "=", False)], order="id")
         )
         for payment_data in pending:
-            self.with_context(payment_safe_write=True)._process(payment_data.payload)
-            payment_data.unlink()
+            try:
+                with self.env.cr.savepoint():
+                    self.with_context(payment_safe_write=True)._process(payment_data.payload)
+                    payment_data.unlink()
+            except Exception:
+                payment_data.write({"errored": True, "error_traceback": traceback.format_exc()})
+                _logger.exception(
+                    "Failed to process payment data %s for transaction %s.", payment_data.id, self.reference
+                )
+        return True
 
     def get_pagos360_info(self, check_payment_state=True):
         result_msg = []
@@ -678,13 +690,17 @@ class PaymentTransaction(models.Model):
         errors_in_a_row = 0
 
         def check(tx):
-            """Fetch and process one transaction in its own commit. Return whether Pagos360 answered."""
+            """Fetch and process one transaction in its own commit.
+
+            :return: Whether Pagos360 answered, or None if the processing cron holds the transaction:
+                its state is then not up to date and the control leaves it alone.
+            """
             nonlocal errors_in_a_row
             try:
                 payloads = tx._pagos360_fetch_and_process_transaction()
                 self.env.cr.commit()  # pylint: disable=invalid-commit
                 # The control decides on the resulting state, so it cannot wait for the processing cron.
-                tx._pagos360_process_recorded_data()
+                processed = tx._pagos360_process_recorded_data()
                 self.env.cr.commit()  # pylint: disable=invalid-commit
             except Exception:
                 self.env.cr.rollback()
@@ -695,6 +711,10 @@ class PaymentTransaction(models.Model):
                     raise _Pagos360ControlAborted("%s checks failed in a row" % errors_in_a_row) from None
                 return False
             errors_in_a_row = 0
+            if not processed:
+                stats["locked"] += 1
+                _logger.info(prefix + "%s is being processed by someone else, left as is.", tx.reference)
+                return None
             stats["failed"] += not payloads
             try:
                 (tx | tx.source_transaction_id)._post_process_with_lock()
@@ -821,8 +841,7 @@ class PaymentTransaction(models.Model):
         final_day = day - timedelta(days=const.CONTROL_RECHECK_DAYS)
         for tx in due[:max_checks]:
             stats["expired_checked"] += 1
-            check(tx)
-            if tx.state not in ("draft", "pending"):
+            if check(tx) is None or tx.state not in ("draft", "pending"):
                 continue
             stats["unresolved"] += 1
             # After the first check there is still the recheck: only the last one warns.
