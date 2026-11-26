@@ -9,8 +9,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 18.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-13 16:38+0000\n"
-"PO-Revision-Date: 2026-10-13 16:38+0000\n"
+"POT-Creation-Date: 2026-11-26 20:23+0000\n"
+"PO-Revision-Date: 2026-11-26 20:23+0000\n"
 "Last-Translator: carla spiaggi <sca@adhoc.inc>\n"
 "Language-Team: Spanish <https://translation.dev-adhoc.com/projects/"
 "pagos360-19-0/pagos360-19-0-payment_pagos360/es/>\n"
@@ -70,6 +70,13 @@ msgid ""
 "  (ej. ``39`` = Visa), no con el nombre: la API descarta en silencio cualquier otro\n"
 "  identificador. El código no es estable, por eso se refresca desde la API en cada\n"
 "  \"Fetch available methods\".\n"
+"- Control diario de cobranzas: una acción planificada revisa el día anterior\n"
+"  (hora de Argentina) contra Pagos360 y resuelve lo que el webhook no avisó.\n"
+"  Lee el reporte de cobranzas, el de contracargos y las adhesiones firmadas, y\n"
+"  consulta una por una solo las transacciones que en Odoo siguen sin resolver;\n"
+"  las demás pendientes se consultan el día en que vence su plazo y, como red,\n"
+"  una semana después. Corre solo sobre proveedores habilitados; en modo prueba\n"
+"  se lanza a mano.\n"
 "\n"
 "Detalles Técnicos\n"
 "=================\n"
@@ -93,7 +100,9 @@ msgid ""
 "  ``pagos360_excluded_card_brand_ids``), más los métodos de API, webhooks y armado\n"
 "  de las exclusiones del cupón (``_pagos360_get_coupon_exclusions``).\n"
 "- ``payment.transaction``: armado del payload de la solicitud de pago, flujo de\n"
-"  adhesión/tokenización y cobro hijo.\n"
+"  adhesión/tokenización y cobro hijo. La consulta individual a la API\n"
+"  (``_pagos360_fetch_and_process_transaction``) la usan el botón *Check in* y el\n"
+"  control diario (``_cron_pagos360_collection_control``).\n"
 "- ``payment.token``: datos de adhesión del token.\n"
 "\n"
 "Otros elementos:\n"
@@ -103,6 +112,13 @@ msgid ""
 "- ``security/ir.model.access.csv``: accesos a los catálogos nuevos.\n"
 "- ``data/pagos360_catalog_data.xml``: canales soportados y planes de cuotas\n"
 "  habituales.\n"
+"- ``data/ir_cron_data.xml``: acción planificada diaria del control de cobranzas.\n"
+"- Parámetros del sistema del control: ``pagos360.control_max_checks`` (tope de\n"
+"  consultas individuales por corrida, 50) y\n"
+"  ``pagos360.control_max_consecutive_errors`` (errores seguidos que cortan la\n"
+"  corrida, 5).\n"
+"- Acción *Run Collection Control (PAGOS360)* en el proveedor: corre el control\n"
+"  para el día anterior, también en modo prueba.\n"
 "- ``migrations/19.0.2.1.0/post-migrate.py``: convierte la configuración previa\n"
 "  (campos de texto con listas serializadas) a los nuevos Many2many.\n"
 "\n"
@@ -120,6 +136,9 @@ msgid ""
 "#. Seleccionar, como etiquetas, los canales, cuotas y marcas de tarjeta a excluir\n"
 "   del cupón.\n"
 "#. Usar *Ensure Webhook* para registrar o verificar el webhook en Pagos360.\n"
+"#. El control diario corre solo. Lo que no puede resolver queda en el log del\n"
+"   servidor con el prefijo ``PAGOS360 CONTROL`` y, si la transacción tiene\n"
+"   facturas u órdenes de venta, como nota interna en su chatter.\n"
 "\n"
 "Arquitectura\n"
 "============\n"
@@ -479,6 +498,13 @@ msgid "Name"
 msgstr "Nombre"
 
 #. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/controllers/main.py:0
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "No payment request found in Pagos360 for reference %s."
+msgstr "No se encontró una solicitud de pago en Pagos360 para la referencia %s."
+
+#. module: payment_pagos360
 #: model:ir.model.fields,field_description:payment_pagos360.field_pagos360_installment__number
 msgid "Number"
 msgstr "Número"
@@ -620,6 +646,21 @@ msgstr ""
 #: model:ir.actions.server,name:payment_pagos360.ir_cron_pagos360_collection_control_ir_actions_server
 msgid "Pagos360: Daily Collection Control"
 msgstr "Pagos360: Control diario de cobranzas"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_token.py:0
+msgid ""
+"Pagos360: Similar payment found %(id)s for %(holder)s, %(state)s %(total)s\n"
+msgstr ""
+"Pagos360: se encontró un pago similar %(id)s para %(holder)s, %(state)s "
+"%(total)s\n"
+
+#. module: payment_pagos360
+#. odoo-python
+#: code:addons/payment_pagos360/models/payment_transaction.py:0
+msgid "Pagos360: payment method %(method)s is not supported."
+msgstr "Pagos360: el método de pago %(method)s no está soportado."
 
 #. module: payment_pagos360
 #. odoo-python
@@ -909,9 +950,3 @@ msgstr "revertida"
 #: code:addons/payment_pagos360/models/payment_transaction.py:0
 msgid "signed"
 msgstr "firmada"
-
-#. module: payment_pagos360
-#. odoo-python
-#: code:addons/payment_pagos360/models/payment_token.py:0
-msgid "statefirst_total"
-msgstr ""
