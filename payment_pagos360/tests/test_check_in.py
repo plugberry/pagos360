@@ -40,7 +40,9 @@ class TestCheckIn(TransactionCase):
             "id": request_id,
             "state": "paid",
             "external_reference": reference,
-            "request_result": [{"paid_at": "2026-02-23T16:18:44-03:00", "amount": 100.0}],
+            "request_result": [
+                {"type": "collected_payment_request_result", "paid_at": "2026-02-23T16:18:44-03:00", "amount": 100.0}
+            ],
         }
 
     def _check_in(self, tx, api_data):

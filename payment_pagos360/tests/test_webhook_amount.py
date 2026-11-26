@@ -124,11 +124,27 @@ class TestWebhookAmount(TransactionCase):
         tx = self._make_tx()
         data = self._webhook_data(
             "paid",
-            payload={"first_total": PAID_AMOUNT - 1000, "request_result": [{"amount": PAID_AMOUNT}]},
+            payload={
+                "first_total": PAID_AMOUNT - 1000,
+                "request_result": [{"type": "collected_payment_request_result", "amount": PAID_AMOUNT}],
+            },
         )
         self.assertEqual(tx._extract_amount_data(data)["amount"], PAID_AMOUNT)
         self._process(data)
         self.assertEqual(tx.state, "done")
+
+    def test_rejected_attempts_do_not_add_to_the_paid_amount(self):
+        """request_result also lists the rejected attempts, with their amount, as the sandbox does."""
+        rejected = {"type": "rejected_payment_request_result", "amount": PAID_AMOUNT}
+        with self.subTest("only rejected attempts: the amount is not checked yet"):
+            tx = self._make_tx(reference="TEST/2026/00002")
+            data = self._webhook_data("pending", payload={"request_result": [rejected, rejected]})
+            self.assertIsNone(tx._extract_amount_data(data))
+        with self.subTest("paid after two rejected attempts: the transaction is done"):
+            tx = self._make_tx()
+            collected = {"type": "collected_payment_request_result", "amount": PAID_AMOUNT}
+            self._process(self._webhook_data("paid", payload={"request_result": [rejected, rejected, collected]}))
+            self.assertEqual(tx.state, "done")
 
     def test_amount_data_of_adhesion_is_read_from_first_total(self):
         tx = self._make_tx(token=self._make_token("adhesion"))
@@ -154,13 +170,18 @@ class TestWebhookAmount(TransactionCase):
 
     def test_matching_amount_is_still_validated(self):
         tx = self._make_tx()
-        data = self._webhook_data("paid", payload={"request_result": [{"amount": PAID_AMOUNT}]})
+        data = self._webhook_data(
+            "paid", payload={"request_result": [{"type": "collected_payment_request_result", "amount": PAID_AMOUNT}]}
+        )
         self.assertEqual(tx._extract_amount_data(data)["amount"], PAID_AMOUNT)
         self._process(data)
         self.assertEqual(tx.state, "done")
 
     def test_mismatching_amount_still_sets_error(self):
         tx = self._make_tx()
-        data = self._webhook_data("paid", payload={"request_result": [{"amount": PAID_AMOUNT - 1000}]})
+        data = self._webhook_data(
+            "paid",
+            payload={"request_result": [{"type": "collected_payment_request_result", "amount": PAID_AMOUNT - 1000}]},
+        )
         self._process(data)
         self.assertEqual(tx.state, "error")

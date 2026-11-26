@@ -61,13 +61,26 @@ class TestSimulateNotification(TransactionCase):
             action = getattr(tx, f"action_pagos360_simulate_{status}")()
         return action, make_request
 
+    def _simulate_paid_reading_amount(self, tx):
+        extract = type(tx)._extract_amount_data
+        amounts = []
+
+        def spy(rec, payment_data):
+            amounts.append(extract(rec, payment_data))
+            return amounts[-1]
+
+        with patch.object(type(tx), "_extract_amount_data", spy):
+            action, make_request = self._simulate(tx, "paid")
+        return action, make_request, amounts[-1]
+
     def test_simulate_paid(self):
         for adhesion_type, state in (("adhesion", "pending"), ("card_adhesion", "pending"), (False, "draft")):
             with self.subTest(adhesion_type=adhesion_type, state=state):
                 tx = self._make_tx(adhesion_type, state)
-                action, make_request = self._simulate(tx, "paid")
+                action, make_request, amount_data = self._simulate_paid_reading_amount(tx)
                 make_request.assert_not_called()
                 self.assertEqual(tx.state, "done")
+                self.assertEqual(amount_data["amount"], 500.0, "the amount check runs")
                 self.assertFalse(tx.state_message, "the amount check must pass")
                 self.assertEqual(tx.pagos360_effective_payment_date, fields.Date.today())
                 self.assertTrue(tx.is_post_processed, "the post-processing runs without waiting for the cron")

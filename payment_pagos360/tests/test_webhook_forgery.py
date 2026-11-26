@@ -56,7 +56,9 @@ class TestWebhookForgery(HttpCase):
             "payload": {
                 "id": "999001",
                 "external_reference": reference,
-                "request_result": [{"amount": 50000.0, "paid_at": "2026-10-23 10:00:00"}],
+                "request_result": [
+                    {"type": "collected_payment_request_result", "amount": 50000.0, "paid_at": "2026-10-23 10:00:00"}
+                ],
             },
         }
         # The API says the real state is still pending: the notification's "paid" is a lie.
@@ -83,7 +85,13 @@ class TestWebhookForgery(HttpCase):
                     "id": "999002",
                     "external_reference": reference,
                     "state": "paid",
-                    "request_result": [{"amount": 50000.0, "paid_at": "2026-10-23 10:00:00"}],
+                    "request_result": [
+                        {
+                            "type": "collected_payment_request_result",
+                            "amount": 50000.0,
+                            "paid_at": "2026-10-23 10:00:00",
+                        }
+                    ],
                 }
             ]
         }

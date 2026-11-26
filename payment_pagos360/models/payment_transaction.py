@@ -300,8 +300,15 @@ class PaymentTransaction(models.Model):
             return None
         amount = 0.0
         if not self.pagos360_adhesion_type:
-            for result in payload.get("request_result", []):
-                amount += result.get("amount", 0.0)
+            # Rejected attempts are listed too: only the collected ones were paid.
+            amounts = [
+                result.get("amount", 0.0)
+                for result in payload[amount_key]
+                if str(result.get("type", "")).startswith("collected")
+            ]
+            if not amounts:
+                return None
+            amount = sum(amounts, 0.0)
         elif self.pagos360_adhesion_type == "adhesion":
             amount += payload.get("first_total", 0.0)
         elif self.pagos360_adhesion_type == "card_adhesion":
@@ -1052,7 +1059,9 @@ class PaymentTransaction(models.Model):
             elif self.pagos360_adhesion_type == "card_adhesion":
                 data["amount"] = self.amount
             else:
-                data["request_result"] = [{"amount": self.amount, "paid_at": data["paid_at"]}]
+                data["request_result"] = [
+                    {"type": "collected_payment_request_result", "amount": self.amount, "paid_at": data["paid_at"]}
+                ]
         elif status == "reverted" and self.pagos360_effective_payment_date:
             data["paid_at"] = fields.Date.to_string(self.pagos360_effective_payment_date)
         entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE.get(self.pagos360_adhesion_type, "payment_request")
