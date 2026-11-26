@@ -104,7 +104,7 @@ class TestCollectionControl(TransactionCase):
             "id": entity_id,
             "state": "paid",
             "external_reference": reference,
-            "request_result": [{"amount": 1000.0, "paid_at": paid_at}],
+            "request_result": [{"type": "collected_payment_request_result", "amount": 1000.0, "paid_at": paid_at}],
         }
 
     @mute_logger(LOGGER)

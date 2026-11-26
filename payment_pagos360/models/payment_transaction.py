@@ -301,8 +301,15 @@ class PaymentTransaction(models.Model):
             return None
         amount = 0.0
         if not self.pagos360_adhesion_type:
-            for result in payload.get("request_result", []):
-                amount += result.get("amount", 0.0)
+            # Rejected attempts are listed too: only the collected ones were paid.
+            amounts = [
+                result.get("amount", 0.0)
+                for result in payload[amount_key]
+                if str(result.get("type", "")).startswith("collected")
+            ]
+            if not amounts:
+                return None
+            amount = sum(amounts, 0.0)
         elif self.pagos360_adhesion_type == "adhesion":
             amount += payload.get("first_total", 0.0)
         elif self.pagos360_adhesion_type == "card_adhesion":
