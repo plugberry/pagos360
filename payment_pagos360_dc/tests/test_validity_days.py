@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from unittest.mock import patch
 
+from odoo import fields
 from odoo.addons.account.tests.common import AccountTestInvoicingCommon
 from odoo.addons.payment_pagos360.models.payment_provider import (
     PaymentProvider as Pagos360Provider,
@@ -154,3 +155,33 @@ class TestValidityDays(AccountTestInvoicingCommon):
     def test_debit_execution_days_constraint_rejects_below_minimum(self):
         with self.assertRaises(Exception):
             self.provider.pagos360_debit_execution_days = 2
+
+    def test_card_debit_on_cut_day_asks_for_next_period(self):
+        """On a cut day Pagos360 already rejects the current month, so the next one is requested."""
+        self.provider.pagos360_cut_days = "10,20"
+        token = self.env["payment.token"].create(
+            {
+                "provider_id": self.provider.id,
+                "payment_method_id": self.payment_method.id,
+                "partner_id": self.partner_a.id,
+                "provider_ref": "63897",
+                "payment_details": "Test token",
+                "pagos360_adhesion_type": "card_adhesion",
+            }
+        )
+        cases = [
+            (date(2026, 10, 19), 10, 2026),
+            (date(2026, 10, 20), 11, 2026),
+            (date(2026, 12, 20), 1, 2027),
+        ]
+        for today, month, year in cases:
+            with self.subTest(today=today):
+                tx = self._create_transaction()
+                tx.token_id = token
+                with (
+                    patch.object(fields.Date, "today", return_value=today),
+                    patch.object(Pagos360Provider, "_pagos360_make_request", return_value={}) as request,
+                ):
+                    tx._pagos360_card_debit_request()
+                sent = request.call_args.kwargs["data"]["card_debit_request"]
+                self.assertEqual((sent["month"], sent["year"]), (month, year))

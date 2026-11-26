@@ -222,7 +222,7 @@ class PaymentTransaction(models.Model):
         """
         today = fields.Date.today()
         cut_days = sorted(int(d.strip()) for d in self.provider_id.pagos360_cut_days.split(","))
-        future_cuts = [d for d in cut_days if d >= today.day]
+        future_cuts = [d for d in cut_days if d > today.day]
         if future_cuts:
             execution_date = today.replace(day=future_cuts[0])
         else:
