@@ -12,9 +12,9 @@ class TestEnsureWebhook(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.provider = cls.env.ref("payment_pagos360.payment_provider_pagos360")
-        cls.provider.write({"state": "test"})
+        cls.provider.write({"active": True, "is_live": False, "pagos360_test_api_key": "test-key"})
         cls.icp = cls.env["ir.config_parameter"].sudo()
-        cls.icp.set_param("saas_client.platform_url", "https://cliente.adhoc.ar")
+        cls.icp.set_str("saas_client.platform_url", "https://cliente.adhoc.ar")
 
     def _ensure(self, registered, per_page=100):
         """Press the button against an account that has the `registered` webhooks; return the calls."""
@@ -40,7 +40,7 @@ class TestEnsureWebhook(TransactionCase):
         return {"id": webhook_id, "url": url, "events": [{"id": event} for event in events]}
 
     def test_registers_platform_domain_and_drops_other_odoo_domains(self):
-        self.provider.write({"pagos360_api_key": "live-key", "state": "enabled"})
+        self.provider.write({"pagos360_api_key": "live-key", "is_live": True})
         calls = self._ensure(
             [
                 self._webhook(1, "https://www.colegio.edu.ar/payment/pagos360/webhook"),
@@ -55,7 +55,7 @@ class TestEnsureWebhook(TransactionCase):
         self.assertEqual(posts, [{"webhook": {"url": PLATFORM_WEBHOOK, "event_types": list(EVENTS)}}])
 
     def test_platform_webhook_already_set_is_kept(self):
-        self.provider.write({"pagos360_api_key": "live-key", "state": "enabled"})
+        self.provider.write({"pagos360_api_key": "live-key", "is_live": True})
         calls = self._ensure(
             [
                 self._webhook(1, PLATFORM_WEBHOOK),
@@ -71,7 +71,7 @@ class TestEnsureWebhook(TransactionCase):
         self.assertEqual(posts[0]["webhook"]["url"], PLATFORM_WEBHOOK)
 
     def test_reads_every_page_of_the_account(self):
-        self.provider.write({"pagos360_api_key": "live-key", "state": "enabled"})
+        self.provider.write({"pagos360_api_key": "live-key", "is_live": True})
         others = [self._webhook(i, f"https://old-{i}.example.com/payment/pagos360/webhook") for i in range(1, 4)]
         calls = self._ensure([*others, self._webhook(9, PLATFORM_WEBHOOK)], per_page=2)
         self.assertEqual([c[1] for c in calls if c[0] == "DELETE"], ["/webhook/1", "/webhook/2", "/webhook/3"])
@@ -83,7 +83,7 @@ class TestEnsureWebhook(TransactionCase):
         self.assertTrue(any(method == "POST" for method, _endpoint, _data in calls))
 
     def test_without_platform_parameter_uses_the_base_url(self):
-        self.icp.set_param("saas_client.platform_url", False)
+        self.icp.set_str("saas_client.platform_url", False)
         base_url = self.provider.get_base_url().replace("http:", "https:")
         calls = self._ensure([])
         posts = [data for method, _endpoint, data in calls if method == "POST"]

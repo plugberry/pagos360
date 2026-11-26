@@ -328,7 +328,7 @@ class PaymentProvider(models.Model):
     def _pagos360_get_webhook_base_url(self):
         # The platform domain does not change when a website moves; get_base_url() follows the
         # domain of whoever presses the button (website_payment).
-        platform_url = self.env["ir.config_parameter"].sudo().get_param("saas_client.platform_url")
+        platform_url = self.env["ir.config_parameter"].sudo().get_str("saas_client.platform_url")
         return (platform_url or self.get_base_url()).replace("http:", "https:")
 
     @api.depends("pagos360_api_key", "pagos360_test_api_key")
@@ -387,7 +387,7 @@ class PaymentProvider(models.Model):
                 if webhook_events == set(self._get_event_types()):
                     is_set = True
                     continue
-            elif self.state != "enabled" or not self._pagos360_is_odoo_webhook(url):
+            elif not self.is_live or not self._pagos360_is_odoo_webhook(url):
                 continue
             self._pagos360_make_request("/webhook/%s" % webhook.get("id"), method="DELETE")
         return is_set
