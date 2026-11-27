@@ -533,11 +533,11 @@ class PaymentTransaction(models.Model):
 
     def _pagos360_card_debit_request(self):
         today = fields.Date.today()
-        cut_days_raw = (self.provider_id.pagos360_cut_days or "19").split(",")
+        cut_days_raw = (self.provider_id.pagos360_cut_days or "20").split(",")
         cut_days = sorted(int(d.strip()) for d in cut_days_raw if d.strip().isdigit())
         if not cut_days:
-            cut_days = [19]
-        future_cuts = [c for c in cut_days if c >= today.day]
+            cut_days = [20]
+        future_cuts = [c for c in cut_days if c > today.day]
         if future_cuts:
             execution_date = today.replace(day=future_cuts[0])
         else:
