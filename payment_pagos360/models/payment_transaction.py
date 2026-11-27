@@ -1,5 +1,6 @@
 import logging
 import pprint
+import traceback
 from collections import Counter
 from datetime import date, timedelta
 
@@ -137,6 +138,10 @@ class PaymentTransaction(models.Model):
         elif self.payment_method_code == "rapipago":
             access_token = payment_utils.generate_access_token(self.partner_id.id, self.amount, self.currency_id.id)
             api_url = "/payment/pagos360/rapipago?tx_id=%s&access_token=%s" % (self.id, access_token)
+        else:
+            raise ValidationError(
+                _("Pagos360: payment method %(method)s is not supported.", method=self.payment_method_code)
+            )
 
         return {
             "api_url": api_url,
@@ -202,18 +207,13 @@ class PaymentTransaction(models.Model):
         3. Sin toggle o sin facturas elegibles: devuelve min_day.
         """
         provider = self.provider_id
-
-        if provider.pagos360_debit_use_invoice_due:
-            invoice_due = self._pagos360_get_invoice_due_date()
-            min_day_raw = self._pagos360_next_business_day(date.today(), days=3)
-            if invoice_due:
-                min_day = fields.Date.from_string(min_day_raw[:10])
-                if min_day >= invoice_due:
-                    return min_day_raw
-                return self._pagos360_next_business_day(invoice_due - timedelta(days=1), days=1)
+        min_day_raw = self._pagos360_next_business_day(date.today(), days=provider.pagos360_debit_execution_days)
+        if not provider.pagos360_debit_use_invoice_due:
             return min_day_raw
-
-        return self._pagos360_next_business_day(date.today(), days=provider.pagos360_debit_execution_days)
+        invoice_due = self._pagos360_get_invoice_due_date()
+        if not invoice_due or fields.Date.from_string(min_day_raw[:10]) >= invoice_due:
+            return min_day_raw
+        return self._pagos360_next_business_day(invoice_due - timedelta(days=1), days=1)
 
     def get_second_due_values(self):
         second_due_date = fields.Datetime.now() + timedelta(days=self.provider_id.second_validity_days)
@@ -263,8 +263,6 @@ class PaymentTransaction(models.Model):
             ]
         else:
             domain = [("reference", "=", payload.get("external_reference")), ("provider_code", "=", "pagos360")]
-        if payload.get("entity_name") == "payment_request":
-            domain.append(["pagos360_adhesion_type", "=", False])
         tx = self.search(domain)
         if not tx:
             _logger.warning("Pagos360: No transaction found matching reference %s.", payment_data.get("ref"))
@@ -302,8 +300,15 @@ class PaymentTransaction(models.Model):
             return None
         amount = 0.0
         if not self.pagos360_adhesion_type:
-            for result in payload.get("request_result", []):
-                amount += result.get("amount", 0.0)
+            # Rejected attempts are listed too: only the collected ones were paid.
+            amounts = [
+                result.get("amount", 0.0)
+                for result in payload[amount_key]
+                if str(result.get("type", "")).startswith("collected")
+            ]
+            if not amounts:
+                return None
+            amount = sum(amounts, 0.0)
         elif self.pagos360_adhesion_type == "adhesion":
             amount += payload.get("first_total", 0.0)
         elif self.pagos360_adhesion_type == "card_adhesion":
@@ -489,7 +494,7 @@ class PaymentTransaction(models.Model):
             )
         elif entity_name == "adhesion":
             payment_details = "Debito automático en CBU: {} ****{}".format(
-                adhesion_data.get("bank"), adhesion_data.get("cbu_number")
+                adhesion_data.get("bank"), (adhesion_data.get("cbu_number") or "")[-5:]
             )
         else:
             payment_details = ""
@@ -621,20 +626,31 @@ class PaymentTransaction(models.Model):
     def _pagos360_process_recorded_data(self):
         """Process now the payment data that `_record` queued for this transaction, as the processing cron does.
 
-        A transaction locked by someone else is left to the cron.
+        A payment data that fails is marked as errored and the next one is processed.
+
+        :return: False if the transaction is locked by someone else, who is left to process it.
+        :rtype: bool
         """
         self.ensure_one()
         txs_to_lock = self | self.source_transaction_id
         if txs_to_lock.try_lock_for_update() != txs_to_lock:
-            return
+            return False
         pending = (
             self.env["payment.data"]
             .sudo()
             .search([("transaction_id", "=", self.id), ("errored", "=", False)], order="id")
         )
         for payment_data in pending:
-            self.with_context(payment_safe_write=True)._process(payment_data.payload)
-            payment_data.unlink()
+            try:
+                with self.env.cr.savepoint():
+                    self.with_context(payment_safe_write=True)._process(payment_data.payload)
+                    payment_data.unlink()
+            except Exception:
+                payment_data.write({"errored": True, "error_traceback": traceback.format_exc()})
+                _logger.exception(
+                    "Failed to process payment data %s for transaction %s.", payment_data.id, self.reference
+                )
+        return True
 
     def get_pagos360_info(self, check_payment_state=True):
         result_msg = []
@@ -681,13 +697,17 @@ class PaymentTransaction(models.Model):
         errors_in_a_row = 0
 
         def check(tx):
-            """Fetch and process one transaction in its own commit. Return whether Pagos360 answered."""
+            """Fetch and process one transaction in its own commit.
+
+            :return: Whether Pagos360 answered, or None if the processing cron holds the transaction:
+                its state is then not up to date and the control leaves it alone.
+            """
             nonlocal errors_in_a_row
             try:
                 payloads = tx._pagos360_fetch_and_process_transaction()
                 self.env.cr.commit()  # pylint: disable=invalid-commit
                 # The control decides on the resulting state, so it cannot wait for the processing cron.
-                tx._pagos360_process_recorded_data()
+                processed = tx._pagos360_process_recorded_data()
                 self.env.cr.commit()  # pylint: disable=invalid-commit
             except Exception:
                 self.env.cr.rollback()
@@ -698,6 +718,10 @@ class PaymentTransaction(models.Model):
                     raise _Pagos360ControlAborted("%s checks failed in a row" % errors_in_a_row) from None
                 return False
             errors_in_a_row = 0
+            if not processed:
+                stats["locked"] += 1
+                _logger.info(prefix + "%s is being processed by someone else, left as is.", tx.reference)
+                return None
             stats["failed"] += not payloads
             try:
                 (tx | tx.source_transaction_id)._post_process_with_lock()
@@ -824,8 +848,7 @@ class PaymentTransaction(models.Model):
         final_day = day - timedelta(days=const.CONTROL_RECHECK_DAYS)
         for tx in due[:max_checks]:
             stats["expired_checked"] += 1
-            check(tx)
-            if tx.state not in ("draft", "pending"):
+            if check(tx) is None or tx.state not in ("draft", "pending"):
                 continue
             stats["unresolved"] += 1
             # After the first check there is still the recheck: only the last one warns.
@@ -1036,7 +1059,9 @@ class PaymentTransaction(models.Model):
             elif self.pagos360_adhesion_type == "card_adhesion":
                 data["amount"] = self.amount
             else:
-                data["request_result"] = [{"amount": self.amount, "paid_at": data["paid_at"]}]
+                data["request_result"] = [
+                    {"type": "collected_payment_request_result", "amount": self.amount, "paid_at": data["paid_at"]}
+                ]
         elif status == "reverted" and self.pagos360_effective_payment_date:
             data["paid_at"] = fields.Date.to_string(self.pagos360_effective_payment_date)
         entity_name = const.DEBIT_ENTITY_BY_ADHESION_TYPE.get(self.pagos360_adhesion_type, "payment_request")

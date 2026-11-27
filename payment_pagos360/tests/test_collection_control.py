@@ -118,7 +118,7 @@ class TestCollectionControl(TransactionCase):
             "id": entity_id,
             "state": "paid",
             "external_reference": reference,
-            "request_result": [{"amount": 1000.0, "paid_at": paid_at}],
+            "request_result": [{"type": "collected_payment_request_result", "amount": 1000.0, "paid_at": paid_at}],
         }
 
     @mute_logger(LOGGER)
@@ -196,6 +196,47 @@ class TestCollectionControl(TransactionCase):
         self.assertEqual(already_done.state, "done")
         self.assertIn("rescued=4", summary)
         self.assertIn("unmatched=1", summary)
+
+    @mute_logger(LOGGER)
+    def test_control_processing(self):
+        """A payment data that fails is marked as errored and is not a failed check; a transaction
+        held by the processing cron is left as is, without a note on its stale state."""
+        self.env["ir.config_parameter"].sudo().set_int("pagos360.control_max_consecutive_errors", 1)
+        invoice = self.env["account.move"].create({"move_type": "out_invoice", "partner_id": self.partner.id})
+        broken = self._make_tx(provider_reference="2001")
+        locked = self._make_tx(provider_reference="2002", invoice_ids=[Command.set(invoice.ids)])
+        paid = self._make_tx(provider_reference="2003")
+        Transaction = type(self.Transaction)
+        process, try_lock = Transaction._process, Transaction.try_lock_for_update
+
+        def fake_process(tx, payload):
+            if tx == broken:
+                raise ValueError("unexpected payload")
+            return process(tx, payload)
+
+        def fake_lock(txs):
+            return txs.browse() if locked in txs else try_lock(txs)
+
+        txs = (broken, locked, paid)
+        with (
+            patch.object(Transaction, "_process", fake_process),
+            patch.object(Transaction, "try_lock_for_update", fake_lock),
+        ):
+            summary, checked = self._run_control(
+                reports={
+                    "collection": [
+                        {"request_id": int(tx.provider_reference), "external_reference": tx.reference} for tx in txs
+                    ]
+                },
+                entities={"payment-request": [self._paid(int(tx.provider_reference), tx.reference) for tx in txs]},
+            )
+
+        self.assertEqual(checked, list(txs))
+        self.assertNotIn("aborted", summary)
+        self.assertIn("locked=1", summary)
+        self.assertTrue(self.env["payment.data"].sudo().search([("transaction_id", "=", broken.id)]).errored)
+        self.assertEqual((broken.state, paid.state), ("pending", "done"))
+        self.assertFalse(invoice.message_ids.filtered(lambda m: "2002" in (m.body or "")))
 
     @mute_logger(LOGGER)
     def test_control_expired(self):

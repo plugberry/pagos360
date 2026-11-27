@@ -83,7 +83,11 @@ class PaymentToken(models.Model):
                 for transaction in data.get("data", []):
                     if str(transaction.get("adhesion", {}).get("id", "")) in provider_references:
                         message += _(
-                            f"Pagos360: Similar payment found {transaction['id']} for  {transaction['adhesion'].get('adhesion_holder_name')}, {transaction['state']} {transaction['first_total']}\n"
+                            "Pagos360: Similar payment found %(id)s for %(holder)s, %(state)s %(total)s\n",
+                            id=transaction["id"],
+                            holder=transaction["adhesion"].get("adhesion_holder_name"),
+                            state=transaction["state"],
+                            total=transaction["first_total"],
                         )
 
         cbu_adhesions = self.filtered(
@@ -107,6 +111,10 @@ class PaymentToken(models.Model):
                 for transaction in data.get("data", []):
                     if str(transaction.get("adhesion", {}).get("id", "")) in provider_references:
                         message += _(
-                            f"Pagos360: Similar payment found {transaction['id']} for  {transaction['adhesion'].get('adhesion_holder_name')}, {transaction['state']} {transaction['first_total']}\n"
+                            "Pagos360: Similar payment found %(id)s for %(holder)s, %(state)s %(total)s\n",
+                            id=transaction["id"],
+                            holder=transaction["adhesion"].get("adhesion_holder_name"),
+                            state=transaction["state"],
+                            total=transaction["first_total"],
                         )
         return message
