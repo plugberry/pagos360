@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import patch
 
 from odoo import fields
@@ -68,3 +69,27 @@ class TestSendPaymentRequest(TransactionCase):
                 process = self._send(tx)
                 self.assertEqual(process.call_count, 1)
                 self.assertEqual(process.call_args.args[1]["entity_name"], entity_name)
+
+    def test_card_debit_on_cut_day_asks_for_next_period(self):
+        """Pagos360 debits cards on the cut days, so on the last one the current month is rejected."""
+        cases = [
+            ("10,20", date(2026, 10, 10), 10, 2026),
+            ("10,20", date(2026, 10, 19), 10, 2026),
+            ("10,20", date(2026, 10, 20), 11, 2026),
+            ("10,20", date(2026, 12, 20), 1, 2027),
+            (False, date(2026, 10, 19), 10, 2026),
+            (False, date(2026, 10, 20), 11, 2026),
+        ]
+        for i, (cut_days, today, month, year) in enumerate(cases):
+            with self.subTest(cut_days=cut_days, today=today):
+                self.provider.pagos360_cut_days = cut_days
+                tx = self._make_tx(f"{REFERENCE}/cut/{i}", "card_adhesion")
+                with (
+                    patch.object(fields.Date, "today", return_value=today),
+                    patch.object(
+                        type(self.provider), "_pagos360_make_request", return_value={"id": ENTITY_ID + i}
+                    ) as request,
+                ):
+                    tx._pagos360_card_debit_request()
+                sent = request.call_args.kwargs["data"]["card_debit_request"]
+                self.assertEqual((sent["month"], sent["year"]), (month, year))

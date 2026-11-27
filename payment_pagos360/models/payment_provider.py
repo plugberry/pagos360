@@ -35,7 +35,7 @@ class PaymentProvider(models.Model):
     )
     pagos360_cut_days = fields.Char(
         string="Días de corte (débito en tarjeta)",
-        default="19",
+        default="20",
         help="Días del mes (separados por coma, entre 1 y 28) a partir de los cuales el débito en "
         "tarjeta se imputa al período siguiente. Ej: '10,20'. "
         "Reemplaza al parámetro de sistema 'pagos360.cut_day'.",
